@@ -2,8 +2,11 @@
     "global": {
         "rootdir": "/home/badele/sdrhunter",
         "ppm": 57,
-        "nbsamples_lines": 1536,
-        "nbsamples_freqs": 2048
+        "scans": {
+            "nbsamples_lines": 480,
+            "nbsamples_freqs": 2048,
+            "maxlevel_legend": 2
+        }
     },
     "configs": {
         "nagoya-mpl": {
@@ -16,19 +19,16 @@
             "name": "fullrange",
             "freq_start": "24M",
             "freq_end": "1700M",
-            "windows": "1700M",
             "interval": "1m",
-            "maxlevel_legend": 2,
             "nbsamples_lines": 60
         },
         {
             "name": "partialrange",
             "freq_start": "24M",
-            "freq_end": "1680M",
+            "freq_end": "1700M",
             "windows": "100M",
             "nbsamples_lines": 200,
-            "interval": "5s",
-            "maxlevel_legend": 2
+            "interval": "10s"
         },
         {
             "name": "scan",
@@ -36,8 +36,7 @@
             "freq_end": "1680M",
             "nbsamples_lines": 60,
             "windows": "1M",
-            "interval": "1s",
-            "maxlevel_legend": 2
+            "interval": "1s"
         }
     ]
 }

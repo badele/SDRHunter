@@ -29,11 +29,14 @@ def loadJSON(filename):
         configlines = open(filename).read()
         config = json.loads(configlines)
 
-        # Check a width if puissance of ^2
-        if int(np.log2(config['global']['nbsamples_freqs'])) != np.log2(config['global']['nbsamples_freqs']):
-            raise Exception("Please chose a dimension ^2")
 
-        # Check nbsamples_freqs and nbsamples_lines layer config
+        # Check global field if not exist in scans
+        if 'scans' in config['global']:
+            for field in config['global']['scans']:
+                for scanlevel in config['scans']:
+                    if field not in scanlevel:
+                        scanlevel[field] = config['global']['scans'][field]
+
         if 'scans' in config:
             if 'nbsamples_freqs' in config['global'] or 'nbsamples_lines' in config['global']:
                 for scanlevel in config['scans']:
@@ -61,6 +64,7 @@ def loadJSON(filename):
 
         # Convert value to float
         for scanlevel in config['scans']:
+            # Set vars
             scanlevel['freq_start'] = Hz2Float(scanlevel['freq_start'])
             scanlevel['freq_end'] = Hz2Float(scanlevel['freq_end'])
             scanlevel['delta'] = scanlevel['freq_end'] - scanlevel['freq_start']
@@ -70,12 +74,18 @@ def loadJSON(filename):
             scanlevel['scandir'] = "%s/%s" % (config['global']['rootdir'], scanlevel['name'])
             scanlevel['binsize'] = np.ceil(scanlevel['windows'] / (scanlevel['nbsamples_freqs'] - 1))
 
+            # Check multiple windows
             if (scanlevel['delta'] % scanlevel['windows']) != 0:
                 step = int((scanlevel['delta'] / scanlevel['windows']))
                 scanlevel['freq_end'] = scanlevel['freq_start'] + ((step + 1) * scanlevel['windows'])
                 scanlevel['delta'] = scanlevel['freq_end'] - scanlevel['freq_start']
 
             scanlevel['nbstep'] = scanlevel['delta'] / scanlevel['windows']
+
+            # Check if width if puissance of ^2
+            if int(np.log2(scanlevel['nbsamples_freqs'])) != np.log2(scanlevel['nbsamples_freqs']):
+                raise Exception("Please chose a dimension ^2 for %S" % scanlevel)
+
 
         return config
 
