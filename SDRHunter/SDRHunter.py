@@ -19,21 +19,65 @@ import numpy as np
 from tabulate import tabulate
 
 # Unit conversion
-HzUnities = {'M': 1e6, 'K': 1e3}
-secUnities = {'S': 1, 'M': 60, 'H': 3600}
+HzUnities = {'M': 1e6, 'k': 1e3}
+secUnities = {'s': 1, 'm': 60, 'h': 3600}
 
 
 def loadJSON(filename):
     exists = os.path.isfile(filename)
     if exists:
         configlines = open(filename).read()
-        infos = json.loads(configlines)
+        config = json.loads(configlines)
 
-        if int(np.log2(infos['global']['nbsamples_freqs'])) != np.log2(infos['global']['nbsamples_freqs']):
+        # Check a width if puissance of ^2
+        if int(np.log2(config['global']['nbsamples_freqs'])) != np.log2(config['global']['nbsamples_freqs']):
             raise Exception("Please chose a dimension ^2")
 
-        return infos
+        # Check nbsamples_freqs and nbsamples_lines layer config
+        if 'scans' in config:
+            if 'nbsamples_freqs' in config['global'] or 'nbsamples_lines' in config['global']:
+                for scanlevel in config['scans']:
+                    if 'nbsamples_freqs' not in scanlevel:
+                        scanlevel['nbsamples_freqs'] = config['global']['nbsamples_freqs']
 
+                    if 'nbsamples_freqs' not in scanlevel:
+                        scanlevel['nbsamples_lines'] = config['global']['nbsamples_lines']
+
+        # Check required scan param
+        for scanlevel in config['scans']:
+            required = ['name', 'freq_start', 'freq_end', 'interval']
+            for require in required:
+                if require not in scanlevel:
+                    raise Exception("key '%s' required in %s" % (require, scanlevel))
+
+
+        # set windows var if not exist config exist
+        for scanlevel in config['scans']:
+            if 'windows' not in scanlevel:
+                freqstart = Hz2Float(scanlevel['freq_start'])
+                freqend = Hz2Float(scanlevel['freq_end'])
+                scanlevel['windows'] = freqend - freqstart
+
+
+        # Convert value to float
+        for scanlevel in config['scans']:
+            scanlevel['freq_start'] = Hz2Float(scanlevel['freq_start'])
+            scanlevel['freq_end'] = Hz2Float(scanlevel['freq_end'])
+            scanlevel['delta'] = scanlevel['freq_end'] - scanlevel['freq_start']
+            scanlevel['windows'] = Hz2Float(scanlevel['windows'])
+            scanlevel['interval'] = sec2Float(scanlevel['interval'])
+            scanlevel['quitafter'] = sec2Float(scanlevel['interval']) * scanlevel['nbsamples_lines']
+            scanlevel['scandir'] = "%s/%s" % (config['global']['rootdir'], scanlevel['name'])
+            scanlevel['binsize'] = np.ceil(scanlevel['windows'] / (scanlevel['nbsamples_freqs'] - 1))
+
+            if (scanlevel['delta'] % scanlevel['windows']) != 0:
+                step = int((scanlevel['delta'] / scanlevel['windows']))
+                scanlevel['freq_end'] = scanlevel['freq_start'] + ((step + 1) * scanlevel['windows'])
+                scanlevel['delta'] = scanlevel['freq_end'] - scanlevel['freq_start']
+
+            scanlevel['nbstep'] = scanlevel['delta'] / scanlevel['windows']
+
+        return config
 
     return None
 
@@ -48,30 +92,17 @@ def saveJSON(filename,content):
         f.close()
 
 
-def Hz2String(floatvalue, unityvalue, addunity=True):
-
-    unity = unityvalue.upper()
-    if unity in HzUnities:
-        stringvalue = floatvalue / HzUnities[unity]
-
-        if addunity:
-            stringvalue = '%f%s' % (stringvalue, unity)
-
-    return stringvalue
-
-
-def unity2Float(stringvalue, unityvalues):
+def unity2Float(stringvalue, unityobject):
     # If allready number, we consider is the Hz
     if isinstance(stringvalue, int) or isinstance(stringvalue, float):
         return stringvalue
 
-    stringvalue = stringvalue.upper()
     floatvalue = float(stringvalue[:-1])
-    unity = stringvalue[-1].upper()
-    if unity not in unityvalues:
+    unity = stringvalue[-1]
+    if not (unity.lower() in unityobject or unity.upper() in unityobject):
         raise Exception("Not unity found '%s' " % stringvalue)
 
-    floatvalue = floatvalue * unityvalues[unity]
+    floatvalue = floatvalue * unityobject[unity]
     return floatvalue
 
 
@@ -81,6 +112,43 @@ def Hz2Float(stringvalue):
 
 def sec2Float(stringvalue):
     return unity2Float(stringvalue, secUnities)
+
+def float2Unity(value, unityobject):
+    unitysorted = sorted(unityobject, key=lambda x: unityobject[x], reverse=True)
+
+    result = value
+    for unity in unitysorted:
+        if value >= unityobject[unity]:
+            convertresult = value / unityobject[unity]
+            if int(convertresult) == convertresult:
+                result = "%s%s" % (int(value / unityobject[unity]), unity)
+            else:
+                result = "%.2f%s" % (value / unityobject[unity], unity)
+            break
+
+
+    return result
+
+
+def float2Sec(value):
+    return float2Unity(value, secUnities)
+
+
+def float2Hz(value):
+    return float2Unity(value, HzUnities)
+
+
+def calcFilename(scanlevel, start):
+    filename = "%s/%sHz-%sHz-%sHz-%s-%s" % (
+        scanlevel['scandir'],
+        float2Hz(start),
+        float2Hz(start + scanlevel['windows']),
+        float2Hz(scanlevel['binsize']),
+        float2Sec(scanlevel['interval']),
+        float2Sec(scanlevel['quitafter'])
+    )
+
+    return filename
 
 
 def executeShell(cmd):
@@ -96,19 +164,12 @@ def executeShell(cmd):
     return output
 
 
-def executeRTLPower(dirname, start, end, binsize, interval, quitafter):
+def executeRTLPower(config, scanlevel, start):
     # Create directory if not exists
-    if not os.path.isdir(dirname):
-        os.makedirs(dirname)
+    if not os.path.isdir(scanlevel['scandir']):
+        os.makedirs(scanlevel['scandir'])
 
-    filename = "%s/%sMhz-%sMhz-%s-%si-%sq" % (
-        dirname,
-        start,
-        end,
-        binsize,
-        interval,
-        quitafter
-    )
+    filename = calcFilename(scanlevel, start)
 
     # Ignore call rtl_power if file already exist
     csv_filename = "%s.csv" % filename
@@ -118,10 +179,10 @@ def executeRTLPower(dirname, start, end, binsize, interval, quitafter):
 
     cmd = "rtl_power -f %s:%s:%s -i %s -e %s %s" % (
         start,
-        end,
-        binsize,
-        interval,
-        quitafter,
+        start + scanlevel['windows'],
+        scanlevel['binsize'],
+        scanlevel['interval'],
+        scanlevel['quitafter'],
         csv_filename
     )
 
@@ -129,20 +190,16 @@ def executeRTLPower(dirname, start, end, binsize, interval, quitafter):
     executeShell(cmd)
 
 
-def showInfo(args):
-    infos = loadJSON(args.filename)
-    if not infos:
-        print "No infos found in %s" % args.filename
-
+def showInfo(config, args):
     # Show config
     result_scan = []
-    if 'configs' in infos:
-        for configname in infos['configs']:
+    if 'configs' in config:
+        for configname in config['configs']:
             result_scan.append(
                 [
                     configname,
-                    infos['configs'][configname]['location'],
-                    infos['configs'][configname]['antenna'],
+                    config['configs'][configname]['location'],
+                    config['configs'][configname]['antenna'],
                 ]
             )
 
@@ -153,63 +210,44 @@ def showInfo(args):
 
     # Show the scan information table
     result_scan = []
-    if 'scans' in infos:
-        for scanlevel in infos['scans']:
+    if 'scans' in config:
+        for scanlevel in config['scans']:
             result_scan.append(
                 [
                     scanlevel['freq_start'],
                     scanlevel['freq_end'],
                     scanlevel['windows'],
-                    scanlevel['binsize'],
                     scanlevel['interval'],
-                    scanlevel['quitafter'],
+                    scanlevel['nbsamples_lines'],
+                    float2Sec(sec2Float(scanlevel['interval']) * scanlevel['nbsamples_lines']),
+                    # scanlevel['quitafter'],
                     scanlevel['maxlevel_legend'],
                 ]
             )
 
         header = [
-            'Freq. Start', 'Freq. End', 'Windows', 'Binsize', 'Interval', 'Quit After', 'Max legend level'
+            'Freq. Start', 'Freq. End', 'Windows', 'Interval', 'Nb lines', 'Total time', 'Max legend level'
         ]
         print tabulate(result_scan, headers=header, stralign="right")
 
     # Show global config
-    if 'global' in infos:
-        pprint.pprint(infos['global'],indent=2)
+    if 'global' in config:
+        pprint.pprint(config['global'],indent=2)
 
 
-def scan(args):
-    infos = loadJSON(args.filename)
-
-    if 'scans' in infos:
-        for scan in infos['scans']:
-            scandir = "%s/%s" % (infos['global']['rootdir'], scan['name'])
-            freqstart = Hz2Float(scan['freq_start'])
-            freqend = Hz2Float(scan['freq_end'])
-            scanbw = Hz2Float(scan['windows'])
-            interval = scan['interval']
-            delta = freqend - freqstart
-
-            nbsamples_lines = infos['global']['nbsamples_lines']
-            if 'nbsamples_lines' in scan:
-                nbsamples_lines = scan['nbsamples_lines']
-            nbsamples_freqs = infos['global']['nbsamples_freqs']
-            if 'nbsamples_freqs' in scan:
-                nbsamples_lines = scan['nbsamples_freqs']
-
-            binsize = np.ceil(scanbw / (nbsamples_freqs - 1))
-            quit_after = sec2Float(interval) * nbsamples_lines
-
-            if (delta % scanbw) != 0:
-                step = int((delta / scanbw))
-                freqend = freqstart + ((step+1)*scanbw)
-                delta = freqend - freqstart
-
-            nbstep = delta / scanbw
-            range = np.linspace(freqstart,freqend, num=nbstep, endpoint=False)
-
+def scan(config, args):
+    if 'scans' in config:
+        for scanlevel in config['scans']:
+            range = np.linspace(scanlevel['freq_start'],scanlevel['freq_end'], num=scanlevel['nbstep'], endpoint=False)
             for left_freq in range:
-                print "Scan %sMhz-%sMhz" % (int(Hz2String(left_freq,'M', False)),int(Hz2String(left_freq+scanbw,'M', False)))
-                executeRTLPower(scandir, Hz2String(left_freq,'M'), Hz2String(left_freq+scanbw,'M'), binsize, interval, quit_after)
+                print "Scan %shz-%shz" % (float2Hz(left_freq), float2Hz(left_freq + scanlevel['windows']))
+                executeRTLPower(config, scanlevel, left_freq)
+
+
+def generateSummaries(config, args):
+    if 'scans' in config:
+        for scan in config['scans']:
+            scandir = "%s/%s" % (config['global']['rootdir'], scan['name'])
 
 
 def parse_arguments(cmdline=""):
@@ -228,6 +266,7 @@ def parse_arguments(cmdline=""):
         choices=[
             'infos',
             'scan',
+            'generatesummaries',
         ],
         help='Action'
     )
@@ -255,8 +294,6 @@ def parse_arguments(cmdline=""):
         version='%(prog)s {version}'.format(version=__version__)
     )
 
-
-
     a = parser.parse_args(cmdline)
     return a
 
@@ -265,12 +302,21 @@ def main():
     # Parse arguments
     args = parse_arguments(sys.argv[1:])  # pragma: no cover
 
+    # Load JSON config
+    config = loadJSON(args.filename)
+    if not config:
+        raise Exception("No infos found in %s" % args.filename)
+
+    # Execute successive action
     if args.action:
         if 'infos' in args.action:
-            showInfo(args)
+            showInfo(config, args)
 
         if 'scan' in args.action:
-            scan(args)
+            scan(config, args)
+
+        if 'generatesummaries' in args.action:
+            generateSummaries(config, args)
 
 if __name__ == '__main__':
     main()  # pragma: no cover
