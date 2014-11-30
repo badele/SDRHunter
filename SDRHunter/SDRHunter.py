@@ -224,10 +224,10 @@ def showInfo(config, args):
         for scanlevel in config['scans']:
             result_scan.append(
                 [
-                    scanlevel['freq_start'],
-                    scanlevel['freq_end'],
-                    scanlevel['windows'],
-                    scanlevel['interval'],
+                    "%sHz" % float2Hz(scanlevel['freq_start']),
+                    "%sHz" % float2Hz(scanlevel['freq_end']),
+                    "%sHz" % float2Hz(scanlevel['windows']),
+                    float2Sec(scanlevel['interval']),
                     scanlevel['nbsamples_lines'],
                     float2Sec(sec2Float(scanlevel['interval']) * scanlevel['nbsamples_lines']),
                     # scanlevel['quitafter'],
