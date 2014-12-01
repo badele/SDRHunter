@@ -28,9 +28,25 @@ def loadJSON(filename):
     exists = os.path.isfile(filename)
     if exists:
         configlines = open(filename).read()
-        config = json.loads(configlines)
+        content = json.loads(configlines)
+        return content
+
+    return None
 
 
+def saveJSON(filename,content):
+    with open(filename, 'w') as f:
+        jsontext = json.dumps(
+            content, sort_keys=True,
+            indent=4, separators=(',', ': ')
+        )
+        f.write(jsontext)
+        f.close()
+
+
+def loadConfigFile(filename):
+    config = loadJSON(filename)
+    if config:
         # Check global field if not exist in scans
         if 'scans' in config['global']:
             for field in config['global']['scans']:
@@ -87,20 +103,9 @@ def loadJSON(filename):
             if int(np.log2(scanlevel['nbsamples_freqs'])) != np.log2(scanlevel['nbsamples_freqs']):
                 raise Exception("Please chose a dimension ^2 for %S" % scanlevel)
 
-
         return config
 
     return None
-
-
-def saveJSON(filename,content):
-    with open(filename, 'w') as f:
-        jsontext = json.dumps(
-            content, sort_keys=True,
-            indent=4, separators=(',', ': ')
-        )
-        f.write(jsontext)
-        f.close()
 
 
 def loadCSVFile(filename):
@@ -242,7 +247,7 @@ def executeShell(cmd):
 
 
 def executeRTLPower(config, scanlevel, start):
-    print "Scan %s : %shz-%shz" % (scanlevel['name'], float2Hz(start), float2Hz(start + scanlevel['windows']))
+    print "Scan '%s' : %shz-%shz" % (scanlevel['name'], float2Hz(start), float2Hz(start + scanlevel['windows']))
 
     # Create directory if not exists
     if not os.path.isdir(scanlevel['scandir']):
@@ -273,7 +278,7 @@ def executeRTLPower(config, scanlevel, start):
     os.rename(running_filename, csv_filename)
 
 def executeSumarizeSignals(config, scanlevel, start):
-    print "Summarize %s : %shz-%shz" % (scanlevel['name'], float2Hz(start), float2Hz(start + scanlevel['windows']))
+    print "Summarize '%s' : %shz-%shz" % (scanlevel['name'], float2Hz(start), float2Hz(start + scanlevel['windows']))
 
     filename = calcFilename(scanlevel, start)
 
@@ -294,6 +299,45 @@ def executeSumarizeSignals(config, scanlevel, start):
     saveJSON(summary_filename, result)
 
     return result
+
+def executeHeatmapParameters(config, scanlevel, start):
+    print "Heatmap Parameter '%s' : %shz-%shz" % (scanlevel['name'], float2Hz(start), float2Hz(start + scanlevel['windows']))
+
+    filename = calcFilename(scanlevel, start)
+
+    # Ignore if summary file not exists
+    summary_filename = "%s.summary" % filename
+    exists = os.path.isfile(summary_filename)
+    if not exists:
+        return
+
+    summaries = loadJSON(summary_filename)
+    params_filename = "%s.hparam" % filename
+    exists = os.path.isfile(params_filename)
+    if exists:
+        return
+
+    parameters = {}
+    parameters['reversetextorder'] = True
+
+    # Db
+    parameters['db'] = {}
+    parameters['db']['min'] = summaries['avg']['mean'] + summaries['avg']['std']
+    parameters['db']['max'] = summaries['avg']['max']
+
+
+    # Text
+    parameters['texts'] = []
+    parameters['texts'].append({'text': "Min signal: %.2f" % summaries['avg']['min']})
+    parameters['texts'].append({'text': "Max signal: %.2f" % summaries['avg']['max']})
+    parameters['texts'].append({'text': "Mean signal: %.2f" % summaries['avg']['mean']})
+    parameters['texts'].append({'text': "Std signal: %.2f" % summaries['avg']['std']})
+
+    saveJSON(params_filename, parameters)
+
+    return parameters
+
+
 
 def showInfo(config, args):
     # Show config
@@ -392,6 +436,14 @@ def generateSummaries(config, args):
                 executeSumarizeSignals(config, scanlevel, left_freq)
 
 
+def generateHeatmapParameters(config, args):
+    if 'scans' in config:
+        for scanlevel in config['scans']:
+            range = np.linspace(scanlevel['freq_start'],scanlevel['freq_end'], num=scanlevel['nbstep'], endpoint=False)
+            for left_freq in range:
+                executeHeatmapParameters(config, scanlevel, left_freq)
+
+
 def parse_arguments(cmdline=""):
     """Parse the arguments"""
 
@@ -408,7 +460,8 @@ def parse_arguments(cmdline=""):
         choices=[
             'infos',
             'scan',
-            'generatesummaries',
+            'gensummaries',
+            'genheatmapparameters'
         ],
         help='Action'
     )
@@ -445,7 +498,7 @@ def main():
     args = parse_arguments(sys.argv[1:])  # pragma: no cover
 
     # Load JSON config
-    config = loadJSON(args.filename)
+    config = loadConfigFile(args.filename)
     if not config:
         raise Exception("No infos found in %s" % args.filename)
 
@@ -457,8 +510,11 @@ def main():
         if 'scan' in args.action:
             scan(config, args)
 
-        if 'generatesummaries' in args.action:
+        if 'gensummaries' in args.action:
             generateSummaries(config, args)
+
+        if 'genheatmapparameters' in args.action:
+            generateHeatmapParameters(config, args)
 
 if __name__ == '__main__':
     main()  # pragma: no cover
