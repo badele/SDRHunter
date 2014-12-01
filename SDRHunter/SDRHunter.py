@@ -110,7 +110,6 @@ def loadCSVFile(filename):
         return None
 
     # Load a file
-    print "Loading file"
     f = open(filename,"rb")
 
     scaninfo = OrderedDict()
@@ -242,7 +241,7 @@ def executeShell(cmd):
 
 
 def executeRTLPower(config, scanlevel, start):
-    print "Scan %shz-%shz" % (float2Hz(start), float2Hz(start + scanlevel['windows']))
+    print "Scan %s : %shz-%shz" % (scanlevel['name'], float2Hz(start), float2Hz(start + scanlevel['windows']))
 
     # Create directory if not exists
     if not os.path.isdir(scanlevel['scandir']):
@@ -273,7 +272,7 @@ def executeRTLPower(config, scanlevel, start):
     os.rename(running_filename, csv_filename)
 
 def executeSumarizeSignals(config, scanlevel, start):
-    print "Summarize %shz-%shz" % (float2Hz(start), float2Hz(start + scanlevel['windows']))
+    print "Summarize %s : %shz-%shz" % (scanlevel['name'], float2Hz(start), float2Hz(start + scanlevel['windows']))
 
     filename = calcFilename(scanlevel, start)
 
@@ -342,8 +341,6 @@ def showInfo(config, args):
 
 def summarizeSignal(datas):
     summaries = {}
-
-    print "Summarize datas"
 
     # Samples
     summaries['samples'] = {}
