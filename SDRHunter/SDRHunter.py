@@ -123,7 +123,8 @@ def loadCSVFile(filename):
         linefreq_end = float(line[3])
         linefreq_step = float(line[4])
         freqkey = (linefreq_start, linefreq_end, linefreq_step)
-        nbsamples4line = int((linefreq_end - linefreq_start) / linefreq_step)
+
+        nbsamples4line = int(np.round((linefreq_end - linefreq_start) / linefreq_step))
 
         # Calc time key
         dtime = '%s %s' % (line[0], line[1])
@@ -143,7 +144,7 @@ def loadCSVFile(filename):
     globalfreq_end = float(scaninfo.items()[nbsubrange - 1][0][1])
 
     nblines = len(timelist)
-    nbstep = int((globalfreq_end - globalfreq_start) / linefreq_step)
+    nbstep = int(np.round((globalfreq_end - globalfreq_start) / linefreq_step))
 
     if (nbsamples4line * nbsubrange) != nbstep:
         raise Exception('No same numbers samples')
