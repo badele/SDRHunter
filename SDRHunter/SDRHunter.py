@@ -14,6 +14,7 @@ import shlex
 import pprint
 import argparse
 import subprocess
+from collections import OrderedDict
 
 import numpy as np
 from tabulate import tabulate
@@ -102,6 +103,72 @@ def saveJSON(filename,content):
         f.close()
 
 
+def loadCSVFile(filename):
+
+    exists = os.path.isfile(filename)
+    if not exists:
+        return None
+
+    # Load a file
+    print "Loading file"
+    f = open(filename,"rb")
+
+    scaninfo = OrderedDict()
+    timelist = OrderedDict()
+    for line in f:
+        line = [s.strip() for s in line.strip().split(',')]
+        line = [s for s in line if s]
+
+        # Get freq for CSV line
+        linefreq_start = float(line[2])
+        linefreq_end = float(line[3])
+        linefreq_step = float(line[4])
+        freqkey = (linefreq_start, linefreq_end, linefreq_step)
+        nbsamples4line = int((linefreq_end - linefreq_start) / linefreq_step)
+
+        # Calc time key
+        dtime = '%s %s' % (line[0], line[1])
+        if dtime not in timelist:
+            timelist[dtime] = np.array([])
+
+        # Add a uniq freq key
+        if freqkey not in scaninfo:
+            scaninfo[freqkey] = None
+
+        # Get power dB
+        linepower = [float(value) for value in line[6:nbsamples4line + 6]]
+        timelist[dtime] = np.append(timelist[dtime], linepower)
+
+    nbsubrange = len(scaninfo)
+    globalfreq_start = float(scaninfo.items()[0][0][0])
+    globalfreq_end = float(scaninfo.items()[nbsubrange - 1][0][1])
+
+    nblines = len(timelist)
+    nbstep = int((globalfreq_end - globalfreq_start) / linefreq_step)
+
+    if (nbsamples4line * nbsubrange) != nbstep:
+        raise Exception('No same numbers samples')
+
+    times = timelist.keys()
+    powersignal = np.array([])
+    for freqkey, content in timelist.items():
+        powersignal = np.append(powersignal, content)
+
+    powersignal = powersignal.reshape((nblines,nbstep))
+
+    # print "freq_start     : %s" % globalfreq_start
+    # print "freq_end       : %s" % globalfreq_end
+    # print "freq_step      : %s" % linefreq_step
+    # print "nbsamples4line : %s" % nbsamples4line
+    # print "nbsubrange     : %s" % nbsubrange
+    # print "nblines        : %s" % nblines
+    # print "nb_step        : %s" % nbstep
+    # print "time_start     : %s" % time_start
+    # print "time_end       : %s" % time_end
+
+    return {'freq_start': globalfreq_start, 'freq_end': globalfreq_end, 'freq_step': linefreq_step, 'times': times, 'powersignal': powersignal}
+
+
 def unity2Float(stringvalue, unityobject):
     # If allready number, we consider is the Hz
     if isinstance(stringvalue, int) or isinstance(stringvalue, float):
@@ -175,6 +242,8 @@ def executeShell(cmd):
 
 
 def executeRTLPower(config, scanlevel, start):
+    print "Scan %shz-%shz" % (float2Hz(start), float2Hz(start + scanlevel['windows']))
+
     # Create directory if not exists
     if not os.path.isdir(scanlevel['scandir']):
         os.makedirs(scanlevel['scandir'])
@@ -183,7 +252,8 @@ def executeRTLPower(config, scanlevel, start):
 
     # Ignore call rtl_power if file already exist
     csv_filename = "%s.csv" % filename
-    exists = os.path.isfile(csv_filename)
+    running_filename = "%s.running" % filename
+    exists = os.path.isfile(running_filename) or os.path.isfile(csv_filename)
     if exists:
         return
 
@@ -193,12 +263,37 @@ def executeRTLPower(config, scanlevel, start):
         scanlevel['binsize'],
         scanlevel['interval'],
         scanlevel['quitafter'],
-        csv_filename
+        running_filename
     )
 
     # Call rtl_power shell command
     executeShell(cmd)
 
+    # Rename file
+    os.rename(running_filename, csv_filename)
+
+def executeSumarizeSignals(config, scanlevel, start):
+    print "Summarize %shz-%shz" % (float2Hz(start), float2Hz(start + scanlevel['windows']))
+
+    filename = calcFilename(scanlevel, start)
+
+    # ignore if rtl_power file not exists
+    csv_filename = "%s.csv" % filename
+    exists = os.path.isfile(csv_filename)
+    if not exists:
+        return
+
+    # Ignore call summary if file already exist
+    summary_filename = "%s.summary" % filename
+    exists = os.path.isfile(summary_filename)
+    if exists:
+        return
+
+    datas = loadCSVFile(csv_filename)
+    result = summarizeSignal(datas)
+    saveJSON(summary_filename, result)
+
+    return result
 
 def showInfo(config, args):
     # Show config
@@ -213,7 +308,7 @@ def showInfo(config, args):
                 ]
             )
 
-        header = [ 'Config name', 'Location','Antenna' ]
+        header = ['Config name', 'Location','Antenna']
         print tabulate(result_scan, headers=header, stralign="right")
 
     print ""
@@ -245,19 +340,58 @@ def showInfo(config, args):
         pprint.pprint(config['global'],indent=2)
 
 
+def summarizeSignal(datas):
+    summaries = {}
+
+    print "Summarize datas"
+
+    # Samples
+    summaries['samples'] = {}
+    summaries['samples']['nblines'] = datas['powersignal'].shape[0]
+    summaries['samples']['nbsamplescolumn'] = datas['powersignal'].shape[1]
+
+    # Date
+    summaries['time'] = {}
+    summaries['time']['start'] = datas['times'][0]
+    summaries['time']['end'] = datas['times'][-1]
+
+    # Frequencies
+    summaries['freq'] = {}
+    summaries['freq']['start'] = datas['freq_start']
+    summaries['freq']['end'] = datas['freq_end']
+    summaries['freq']['step'] = datas['freq_step']
+
+    # Signals
+    summaries['avg'] = {}
+    summaries['avg']['min'] = np.min(datas['powersignal'])
+    summaries['avg']['max'] = np.max(datas['powersignal'])
+    summaries['avg']['mean'] = np.mean(datas['powersignal'])
+    summaries['avg']['std'] = np.std(datas['powersignal'])
+
+    # Signals
+    summaries['signal'] = {}
+    summaries['signal']['min'] = np.min(datas['powersignal'], axis=0).tolist()
+    summaries['signal']['max'] = np.max(datas['powersignal'], axis=0).tolist()
+    summaries['signal']['mean'] = np.mean(datas['powersignal'], axis=0).tolist()
+    summaries['signal']['std'] = np.std(datas['powersignal'], axis=0).tolist()
+
+    return summaries
+
+
 def scan(config, args):
     if 'scans' in config:
         for scanlevel in config['scans']:
             range = np.linspace(scanlevel['freq_start'],scanlevel['freq_end'], num=scanlevel['nbstep'], endpoint=False)
             for left_freq in range:
-                print "Scan %shz-%shz" % (float2Hz(left_freq), float2Hz(left_freq + scanlevel['windows']))
                 executeRTLPower(config, scanlevel, left_freq)
 
 
 def generateSummaries(config, args):
     if 'scans' in config:
-        for scan in config['scans']:
-            scandir = "%s/%s" % (config['global']['rootdir'], scan['name'])
+        for scanlevel in config['scans']:
+            range = np.linspace(scanlevel['freq_start'],scanlevel['freq_end'], num=scanlevel['nbstep'], endpoint=False)
+            for left_freq in range:
+                executeSumarizeSignals(config, scanlevel, left_freq)
 
 
 def parse_arguments(cmdline=""):
