@@ -20,11 +20,21 @@ from collections import OrderedDict
 import numpy as np
 from tabulate import tabulate
 
-# TODO Show text in color for show the state command (gree=>Ok, Red=No)
-
 # Unit conversion
 HzUnities = {'M': 1e6, 'k': 1e3}
 secUnities = {'s': 1, 'm': 60, 'h': 3600}
+
+# Class for terminal Color
+class tcolor:
+    DEFAULT = "\033[0m"
+    BOLD = "\033[1m"
+    RED = "\033[0;1;31;40m"
+    GREEN = "\033[0;1;32;40m"
+    BLUE = "\033[0;1;36;40m"
+    ORANGE = "\033[0;1;33;40m"
+    MAGENTA = "\033[0;1;36;40m"
+    RESET = "\033[2J\033[H"
+    BELL = "\a"
 
 
 def loadJSON(filename):
@@ -250,13 +260,6 @@ def executeShell(cmd, directory=None):
 
 
 def executeRTLPower(config, scanlevel, start):
-    print "Scan '%s' : %shz-%shz : Begin: %s / Quit after %s:" % (
-        scanlevel['name'],
-        float2Hz(start), float2Hz(start + scanlevel['windows']),
-        time.strftime("%H:%M:%S",time.localtime()),
-        float2Sec(scanlevel['quitafter'])
-    )
-
     # Create directory if not exists
     if not os.path.isdir(scanlevel['scandir']):
         os.makedirs(scanlevel['scandir'])
@@ -268,7 +271,21 @@ def executeRTLPower(config, scanlevel, start):
     running_filename = "%s.running" % filename
     exists = os.path.isfile(running_filename) or os.path.isfile(csv_filename)
     if exists:
+        print "%sScan '%s' : %shz-%shz already exists%s" % (
+            tcolor.GREEN,
+            scanlevel['name'],
+            float2Hz(start), float2Hz(start + scanlevel['windows']),
+            tcolor.DEFAULT
+        )
         return
+    else:
+        print "%sScan '%s' : %shz-%shz Begin: %s / Finish in: ~%s" % (
+            tcolor.DEFAULT,
+            scanlevel['name'],
+            float2Hz(start), float2Hz(start + scanlevel['windows']),
+            time.strftime("%H:%M:%S", time.localtime()),
+            float2Sec(scanlevel['quitafter']),
+        )
 
     cmd = "rtl_power -f %s:%s:%s -i %s -e %s %s" % (
         start,
@@ -286,21 +303,35 @@ def executeRTLPower(config, scanlevel, start):
     os.rename(running_filename, csv_filename)
 
 def executeSumarizeSignals(config, scanlevel, start):
-    print "Summarize '%s' : %shz-%shz" % (scanlevel['name'], float2Hz(start), float2Hz(start + scanlevel['windows']))
-
     filename = calcFilename(scanlevel, start)
 
     # ignore if rtl_power file not exists
     csv_filename = "%s.csv" % filename
     exists = os.path.isfile(csv_filename)
     if not exists:
+        print "%s %s not exist%s" % (
+            tcolor.RED,
+            csv_filename,
+            tcolor.DEFAULT,
+        )
         return
 
     # Ignore call summary if file already exist
     summary_filename = "%s.summary" % filename
     exists = os.path.isfile(summary_filename)
     if exists:
+        print "%sSummarize '%s' : %shz-%shz%s" % (
+            tcolor.GREEN,
+            scanlevel['name'], float2Hz(start), float2Hz(start + scanlevel['windows']),
+            tcolor.DEFAULT,
+        )
         return
+
+    print "%sSummarize '%s' : %shz-%shz" % (
+        tcolor.DEFAULT,
+        scanlevel['name'], float2Hz(start), float2Hz(start + scanlevel['windows']),
+    )
+
 
     datas = loadCSVFile(csv_filename)
     result = summarizeSignal(datas)
@@ -310,21 +341,34 @@ def executeSumarizeSignals(config, scanlevel, start):
 
 
 def executeHeatmapParameters(config, scanlevel, start):
-    print "Heatmap Parameter '%s' : %shz-%shz" % (scanlevel['name'], float2Hz(start), float2Hz(start + scanlevel['windows']))
-
     filename = calcFilename(scanlevel, start)
 
     # Ignore if summary file not exists
     summary_filename = "%s.summary" % filename
     exists = os.path.isfile(summary_filename)
     if not exists:
+        print "%s %s not exist%s" % (
+            tcolor.RED,
+            summary_filename,
+            tcolor.DEFAULT,
+        )
         return
 
     summaries = loadJSON(summary_filename)
     params_filename = "%s.hparam" % filename
     exists = os.path.isfile(params_filename)
     if exists:
+        print "%sHeatmap Parameter '%s' : %shz-%shz%s" % (
+            tcolor.GREEN,
+            scanlevel['name'], float2Hz(start), float2Hz(start + scanlevel['windows']),
+            tcolor.DEFAULT,
+        )
         return
+
+    print "%sHeatmap Parameter '%s' : %shz-%shz" % (
+        tcolor.DEFAULT,
+        scanlevel['name'], float2Hz(start), float2Hz(start + scanlevel['windows']),
+    )
 
     parameters = {}
     parameters['reversetextorder'] = True
@@ -348,25 +392,43 @@ def executeHeatmapParameters(config, scanlevel, start):
 
 
 def executeHeatmap(config, scanlevel, start):
-    print "Heatmap '%s' : %shz-%shz" % (scanlevel['name'], float2Hz(start), float2Hz(start + scanlevel['windows']))
-
     filename = calcFilename(scanlevel, start)
 
     csv_filename = "%s.csv" % filename
     exists = os.path.isfile(csv_filename)
     if not exists:
+        print "%s %s not exist%s" % (
+            tcolor.RED,
+            csv_filename,
+            tcolor.DEFAULT,
+        )
         return
 
     params_filename = "%s.hparam" % filename
     exists = os.path.isfile(params_filename)
     if not exists:
+        print "%s %s not exist%s" % (
+            tcolor.RED,
+            params_filename,
+            tcolor.DEFAULT,
+        )
         return
 
     # Check if scan exist
     img_filename = "%s.png" % filename
     exists = os.path.isfile(img_filename)
     if exists:
+        print "%sHeatmap '%s' : %shz-%shz%s" % (
+            tcolor.GREEN,
+            scanlevel['name'], float2Hz(start), float2Hz(start + scanlevel['windows']),
+            tcolor.DEFAULT
+        )
         return
+
+    print "%sHeatmap '%s' : %shz-%shz" % (
+        tcolor.DEFAULT,
+        scanlevel['name'], float2Hz(start), float2Hz(start + scanlevel['windows']),
+    )
 
     # Check calc or check if Heatmap paramters exists
     cmd = "python heatmap.py --parameters %s %s %s" % (
