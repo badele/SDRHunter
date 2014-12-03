@@ -19,6 +19,9 @@ from collections import OrderedDict
 import numpy as np
 from tabulate import tabulate
 
+# TODO Show begin time and duration before call rtl_power
+# TODO Show text in color for show the state command (gree=>Ok, Red=No)
+
 # Unit conversion
 HzUnities = {'M': 1e6, 'k': 1e3}
 secUnities = {'s': 1, 'm': 60, 'h': 3600}
@@ -233,13 +236,13 @@ def calcFilename(scanlevel, start):
     return filename
 
 
-def executeShell(cmd):
+def executeShell(cmd, directory=None):
     cmdargs = shlex.split(cmd)
-    p = subprocess.Popen(cmdargs, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    p = subprocess.Popen(cmdargs, cwd=directory, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     output, errors = p.communicate()
     if p.returncode:
         print 'Failed running %s' % cmd
-        raise Exception(errors)
+        raise Exception(output)
     else:
         pass
 
@@ -300,6 +303,7 @@ def executeSumarizeSignals(config, scanlevel, start):
 
     return result
 
+
 def executeHeatmapParameters(config, scanlevel, start):
     print "Heatmap Parameter '%s' : %shz-%shz" % (scanlevel['name'], float2Hz(start), float2Hz(start + scanlevel['windows']))
 
@@ -336,6 +340,38 @@ def executeHeatmapParameters(config, scanlevel, start):
     saveJSON(params_filename, parameters)
 
     return parameters
+
+
+def executeHeatmap(config, scanlevel, start):
+    print "Heatmap '%s' : %shz-%shz" % (scanlevel['name'], float2Hz(start), float2Hz(start + scanlevel['windows']))
+
+    filename = calcFilename(scanlevel, start)
+
+    csv_filename = "%s.csv" % filename
+    exists = os.path.isfile(csv_filename)
+    if not exists:
+        return
+
+    params_filename = "%s.hparam" % filename
+    exists = os.path.isfile(params_filename)
+    if not exists:
+        return
+
+    # Check if scan exist
+    img_filename = "%s.png" % filename
+    exists = os.path.isfile(img_filename)
+    if exists:
+        return
+
+    # Check calc or check if Heatmap paramters exists
+    cmd = "python heatmap.py --parameters %s %s %s" % (
+        params_filename,
+        csv_filename,
+        img_filename
+    )
+
+    # Call heatmap.py shell command
+    executeShell(cmd, config['global']['heatmapdir'])
 
 
 
@@ -444,6 +480,14 @@ def generateHeatmapParameters(config, args):
                 executeHeatmapParameters(config, scanlevel, left_freq)
 
 
+def generateHeatmap(config, args):
+    if 'scans' in config:
+        for scanlevel in config['scans']:
+            range = np.linspace(scanlevel['freq_start'],scanlevel['freq_end'], num=scanlevel['nbstep'], endpoint=False)
+            for left_freq in range:
+                executeHeatmap(config, scanlevel, left_freq)
+
+
 def parse_arguments(cmdline=""):
     """Parse the arguments"""
 
@@ -461,7 +505,8 @@ def parse_arguments(cmdline=""):
             'infos',
             'scan',
             'gensummaries',
-            'genheatmapparameters'
+            'genheatmapparameters',
+            'genheatmap'
         ],
         help='Action'
     )
@@ -515,6 +560,9 @@ def main():
 
         if 'genheatmapparameters' in args.action:
             generateHeatmapParameters(config, args)
+
+        if 'genheatmap' in args.action:
+            generateHeatmap(config, args)
 
 if __name__ == '__main__':
     main()  # pragma: no cover
