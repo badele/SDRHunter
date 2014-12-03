@@ -549,19 +549,19 @@ def main():
 
     # Execute successive action
     if args.action:
-        if 'infos' in args.action:
+        if 'infos' == args.action:
             showInfo(config, args)
 
-        if 'scan' in args.action:
+        if 'scan' == args.action:
             scan(config, args)
 
-        if 'gensummaries' in args.action:
+        if 'gensummaries' == args.action:
             generateSummaries(config, args)
 
-        if 'genheatmapparameters' in args.action:
+        if 'genheatmapparameters' == args.action:
             generateHeatmapParameters(config, args)
 
-        if 'genheatmap' in args.action:
+        if 'genheatmap' == args.action:
             generateHeatmap(config, args)
 
 if __name__ == '__main__':
