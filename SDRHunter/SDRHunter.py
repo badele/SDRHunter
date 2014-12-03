@@ -11,6 +11,7 @@ import os
 import sys
 import json
 import shlex
+import time
 import pprint
 import argparse
 import subprocess
@@ -19,7 +20,6 @@ from collections import OrderedDict
 import numpy as np
 from tabulate import tabulate
 
-# TODO Show begin time and duration before call rtl_power
 # TODO Show text in color for show the state command (gree=>Ok, Red=No)
 
 # Unit conversion
@@ -250,7 +250,12 @@ def executeShell(cmd, directory=None):
 
 
 def executeRTLPower(config, scanlevel, start):
-    print "Scan '%s' : %shz-%shz" % (scanlevel['name'], float2Hz(start), float2Hz(start + scanlevel['windows']))
+    print "Scan '%s' : %shz-%shz : Begin: %s / Quit after %s:" % (
+        scanlevel['name'],
+        float2Hz(start), float2Hz(start + scanlevel['windows']),
+        time.strftime("%H:%M:%S",time.localtime()),
+        float2Sec(scanlevel['quitafter'])
+    )
 
     # Create directory if not exists
     if not os.path.isdir(scanlevel['scandir']):
