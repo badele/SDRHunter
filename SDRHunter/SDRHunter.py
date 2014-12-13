@@ -22,7 +22,6 @@ import numpy as np
 import scipy.signal as signal
 from tabulate import tabulate
 
-# Todo: Remove .running file if exists before running rtl_power
 # Todo: In searchstations, save after Nb Loop
 #
 
@@ -283,8 +282,7 @@ def executeRTLPower(config, scanlevel, start):
 
     # Ignore call rtl_power if file already exist
     csv_filename = "%s.csv" % filename
-    running_filename = "%s.running" % filename
-    exists = os.path.isfile(running_filename) or os.path.isfile(csv_filename)
+    exists = os.path.isfile(csv_filename)
     if exists:
         print "%sScan '%s' : %shz-%shz already exists%s" % (
             tcolor.GREEN,
@@ -294,6 +292,16 @@ def executeRTLPower(config, scanlevel, start):
         )
         return
     else:
+        running_filename = "%s.running" % filename
+        exists = os.path.isfile(running_filename)
+        if exists:
+            print "%sScan '%s' : delete old running file %shz-%shz" % (
+                tcolor.DEFAULT,
+                scanlevel['name'],
+                float2Hz(start), float2Hz(start + scanlevel['windows']),
+            )
+            os.remove(running_filename)
+
         print "%sScan '%s' : %shz-%shz Begin: %s / Finish in: ~%s" % (
             tcolor.DEFAULT,
             scanlevel['name'],
@@ -302,20 +310,20 @@ def executeRTLPower(config, scanlevel, start):
             float2Sec(scanlevel['quitafter']),
         )
 
-    cmd = "rtl_power -f %s:%s:%s -i %s -e %s %s" % (
-        start,
-        start + scanlevel['windows'],
-        scanlevel['binsize'],
-        scanlevel['interval'],
-        scanlevel['quitafter'],
-        running_filename
-    )
+        cmd = "rtl_power -f %s:%s:%s -i %s -e %s %s" % (
+            start,
+            start + scanlevel['windows'],
+            scanlevel['binsize'],
+            scanlevel['interval'],
+            scanlevel['quitafter'],
+            running_filename
+        )
 
-    # Call rtl_power shell command
-    executeShell(cmd)
+        # Call rtl_power shell command
+        executeShell(cmd)
 
-    # Rename file
-    os.rename(running_filename, csv_filename)
+        # Rename file
+        os.rename(running_filename, csv_filename)
 
 def executeSumarizeSignals(config, scanlevel, start):
     filename = calcFilename(scanlevel, start)
