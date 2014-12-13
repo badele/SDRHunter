@@ -16,9 +16,15 @@ import pprint
 import argparse
 import subprocess
 from collections import OrderedDict
+import matplotlib.pyplot as plt
 
 import numpy as np
+import scipy.signal as signal
 from tabulate import tabulate
+
+# Todo: Remove .running file if exists before running rtl_power
+# Todo: In searchstations, save after Nb Loop
+#
 
 # Unit conversion
 HzUnities = {'M': 1e6, 'k': 1e3}
@@ -57,6 +63,13 @@ def saveJSON(filename,content):
         f.close()
 
 
+def loadStations(filename):
+    stations = loadJSON(filename)
+    if not stations:
+        stations = {'stations': []}
+
+    return stations
+
 def loadConfigFile(filename):
     config = loadJSON(filename)
     if config:
@@ -66,15 +79,6 @@ def loadConfigFile(filename):
                 for scanlevel in config['scans']:
                     if field not in scanlevel:
                         scanlevel[field] = config['global']['scans'][field]
-
-        if 'scans' in config:
-            if 'nbsamples_freqs' in config['global'] or 'nbsamples_lines' in config['global']:
-                for scanlevel in config['scans']:
-                    if 'nbsamples_freqs' not in scanlevel:
-                        scanlevel['nbsamples_freqs'] = config['global']['nbsamples_freqs']
-
-                    if 'nbsamples_freqs' not in scanlevel:
-                        scanlevel['nbsamples_lines'] = config['global']['nbsamples_lines']
 
         # Check required scan param
         for scanlevel in config['scans']:
@@ -87,18 +91,18 @@ def loadConfigFile(filename):
         # set windows var if not exist config exist
         for scanlevel in config['scans']:
             if 'windows' not in scanlevel:
-                freqstart = Hz2Float(scanlevel['freq_start'])
-                freqend = Hz2Float(scanlevel['freq_end'])
+                freqstart = hz2Float(scanlevel['freq_start'])
+                freqend = hz2Float(scanlevel['freq_end'])
                 scanlevel['windows'] = freqend - freqstart
 
 
         # Convert value to float
         for scanlevel in config['scans']:
             # Set vars
-            scanlevel['freq_start'] = Hz2Float(scanlevel['freq_start'])
-            scanlevel['freq_end'] = Hz2Float(scanlevel['freq_end'])
+            scanlevel['freq_start'] = hz2Float(scanlevel['freq_start'])
+            scanlevel['freq_end'] = hz2Float(scanlevel['freq_end'])
             scanlevel['delta'] = scanlevel['freq_end'] - scanlevel['freq_start']
-            scanlevel['windows'] = Hz2Float(scanlevel['windows'])
+            scanlevel['windows'] = hz2Float(scanlevel['windows'])
             scanlevel['interval'] = sec2Float(scanlevel['interval'])
             scanlevel['quitafter'] = sec2Float(scanlevel['interval']) * scanlevel['nbsamples_lines']
             scanlevel['scandir'] = "%s/%s" % (config['global']['rootdir'], scanlevel['name'])
@@ -106,11 +110,11 @@ def loadConfigFile(filename):
 
             # Check multiple windows
             if (scanlevel['delta'] % scanlevel['windows']) != 0:
-                step = int((scanlevel['delta'] / scanlevel['windows']))
+                step = int((scanlevel['delta'] / (scanlevel['windows'] - (hz2Float(scanlevel['windows']) / 2))))
                 scanlevel['freq_end'] = scanlevel['freq_start'] + ((step + 1) * scanlevel['windows'])
                 scanlevel['delta'] = scanlevel['freq_end'] - scanlevel['freq_start']
 
-            scanlevel['nbstep'] = scanlevel['delta'] / scanlevel['windows']
+            scanlevel['nbstep'] = scanlevel['delta'] / (scanlevel['windows'] - (hz2Float(scanlevel['windows']) / 2))
 
             # Check if width if puissance of ^2
             if int(np.log2(scanlevel['nbsamples_freqs'])) != np.log2(scanlevel['nbsamples_freqs']):
@@ -174,16 +178,6 @@ def loadCSVFile(filename):
 
     powersignal = powersignal.reshape((nblines,nbstep))
 
-    # print "freq_start     : %s" % globalfreq_start
-    # print "freq_end       : %s" % globalfreq_end
-    # print "freq_step      : %s" % linefreq_step
-    # print "nbsamples4line : %s" % nbsamples4line
-    # print "nbsubrange     : %s" % nbsubrange
-    # print "nblines        : %s" % nblines
-    # print "nb_step        : %s" % nbstep
-    # print "time_start     : %s" % time_start
-    # print "time_end       : %s" % time_end
-
     return {'freq_start': globalfreq_start, 'freq_end': globalfreq_end, 'freq_step': linefreq_step, 'times': times, 'powersignal': powersignal}
 
 
@@ -201,7 +195,7 @@ def unity2Float(stringvalue, unityobject):
     return floatvalue
 
 
-def Hz2Float(stringvalue):
+def hz2Float(stringvalue):
     return unity2Float(stringvalue, HzUnities)
 
 
@@ -214,11 +208,7 @@ def float2Unity(value, unityobject):
     result = value
     for unity in unitysorted:
         if value >= unityobject[unity]:
-            convertresult = value / unityobject[unity]
-            if int(convertresult) == convertresult:
-                result = "%s%s" % (int(value / unityobject[unity]), unity)
-            else:
-                result = "%.2f%s" % (value / unityobject[unity], unity)
+            result = "%.2f%s" % (value / unityobject[unity], unity)
             break
 
 
@@ -232,6 +222,31 @@ def float2Sec(value):
 def float2Hz(value):
     return float2Unity(value, HzUnities)
 
+def smooth(x,window_len=11,window='hanning'):
+    # http://wiki.scipy.org/Cookbook/SignalSmooth
+    if x.ndim != 1:
+        raise ValueError, "smooth only accepts 1 dimension arrays."
+
+    if x.size < window_len:
+        raise ValueError, "Input vector needs to be bigger than window size."
+
+
+    if window_len<3:
+        return x
+
+
+    if not window in ['flat', 'hanning', 'hamming', 'bartlett', 'blackman']:
+        raise ValueError, "Window is on of 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'"
+
+
+    s=np.r_[x[window_len-1:0:-1],x,x[-1:-window_len:-1]]
+    if window == 'flat': #moving average
+        w=np.ones(window_len,'d')
+    else:
+        w=eval('numpy.'+window+'(window_len)')
+
+    y=np.convolve(w/w.sum(),s,mode='valid')
+    return y
 
 def calcFilename(scanlevel, start):
     filename = "%s/%sHz-%sHz-%sHz-%s-%s" % (
@@ -340,6 +355,48 @@ def executeSumarizeSignals(config, scanlevel, start):
     return result
 
 
+def executeSearchStations(config, stations, scanlevel, start):
+
+
+    filename = calcFilename(scanlevel, start)
+
+    # ignore if rtl_power file not exists
+    csv_filename = "%s.csv" % filename
+    exists = os.path.isfile(csv_filename)
+    if not exists:
+        print "%s %s not exist%s" % (
+            tcolor.RED,
+            csv_filename,
+            tcolor.DEFAULT,
+        )
+        return
+
+    # Ignore if call summary not exist
+    summary_filename = "%s.summary" % filename
+    exists = os.path.isfile(summary_filename)
+    if not exists:
+        print "%s %s not exist%s" % (
+            tcolor.RED,
+            summary_filename,
+            tcolor.DEFAULT,
+        )
+        return
+    summaries = loadJSON(summary_filename)
+
+    print "%sFind stations '%s' : %shz-%shz" % (
+        tcolor.DEFAULT,
+        scanlevel['name'], float2Hz(start), float2Hz(start + scanlevel['windows']),
+    )
+
+    smooth_max = smooth(np.array(summaries['max']['signal']),10, 'flat')
+
+    limitmin = summaries['min']['peak']['min']['mean'] - summaries['min']['peak']['min']['std']
+    limitmax = summaries['max']['mean'] + summaries['max']['std']
+    searchStation(scanlevel, stations, summaries, smooth_max, limitmin, limitmax)
+
+
+
+
 def executeHeatmapParameters(config, scanlevel, start):
     filename = calcFilename(scanlevel, start)
 
@@ -375,9 +432,7 @@ def executeHeatmapParameters(config, scanlevel, start):
 
     # Db
     parameters['db'] = {}
-    parameters['db']['min'] = summaries['avg']['mean'] + summaries['avg']['std']
-    parameters['db']['max'] = summaries['avg']['max']
-
+    parameters['db']['mean'] = summaries['signal']['avg']['min'] + 5
 
     # Text
     parameters['texts'] = []
@@ -385,6 +440,10 @@ def executeHeatmapParameters(config, scanlevel, start):
     parameters['texts'].append({'text': "Max signal: %.2f" % summaries['avg']['max']})
     parameters['texts'].append({'text': "Mean signal: %.2f" % summaries['avg']['mean']})
     parameters['texts'].append({'text': "Std signal: %.2f" % summaries['avg']['std']})
+
+    parameters['texts'].append({'text': ""})
+    parameters['texts'].append({'text': "avg min %.2f" % summaries['signal']['avg']['min']})
+    parameters['texts'].append({'text': "std min %.2f" % summaries['signal']['std']['min']})
 
     saveJSON(params_filename, parameters)
 
@@ -415,7 +474,7 @@ def executeHeatmap(config, scanlevel, start):
         return
 
     # Check if scan exist
-    img_filename = "%s.png" % filename
+    img_filename = "%s_heatmap.png" % filename
     exists = os.path.isfile(img_filename)
     if exists:
         print "%sHeatmap '%s' : %shz-%shz%s" % (
@@ -440,6 +499,78 @@ def executeHeatmap(config, scanlevel, start):
     # Call heatmap.py shell command
     executeShell(cmd, config['global']['heatmapdir'])
 
+def executeSpectre(config, scanlevel, start):
+    filename = calcFilename(scanlevel, start)
+
+    csv_filename = "%s.csv" % filename
+    exists = os.path.isfile(csv_filename)
+    if not exists:
+        print "%s %s not exist%s" % (
+            tcolor.RED,
+            csv_filename,
+            tcolor.DEFAULT,
+        )
+        return
+
+    # Ignore if summary file not exists
+    summary_filename = "%s.summary" % filename
+    exists = os.path.isfile(summary_filename)
+    if not exists:
+        print "%s %s not exist%s" % (
+            tcolor.RED,
+            summary_filename,
+            tcolor.DEFAULT,
+        )
+        return
+    summaries = loadJSON(summary_filename)
+
+    # Check if scan exist
+    img_filename = "%s_spectre.png" % filename
+    exists = os.path.isfile(img_filename)
+    if exists:
+        print "%sSpectre '%s' : %shz-%shz%s" % (
+            tcolor.GREEN,
+            scanlevel['name'], float2Hz(start), float2Hz(start + scanlevel['windows']),
+            tcolor.DEFAULT
+        )
+        return
+
+    print "%sSpectre '%s' : %shz-%shz" % (
+        tcolor.DEFAULT,
+        scanlevel['name'], float2Hz(start), float2Hz(start + scanlevel['windows']),
+    )
+
+    plt.figure(figsize=(15,10))
+    plt.grid()
+
+    freqs = np.linspace(summaries['freq']['start'], summaries['freq']['end'], num=summaries['samples']['nbsamplescolumn'])
+
+
+
+    limitmin = summaries['min']['peak']['min']['mean'] - summaries['min']['peak']['min']['std']
+    limitmax = summaries['max']['mean'] + summaries['max']['std']
+    limits = np.linspace(limitmin, limitmax, 5)
+    # Max
+    for limit in limits:
+        plt.axhline(limit, color='blue')
+
+    smooth_max = smooth(np.array(summaries['max']['signal']),10, 'flat')
+    plt.plot(freqs, smooth_max[:len(freqs)],color='red')
+
+    # Set X Limit
+    locs, labels = plt.xticks()
+    for idx in range(len(labels)):
+        labels[idx] = float2Hz(locs[idx])
+    plt.xticks(locs, labels)
+    plt.xlabel('Freq in Hz')
+
+    # Set Y Limit
+    # plt.ylim(summary['groundsignal'], summary['maxsignal'])
+    plt.ylabel('Power density in dB')
+
+
+    plt.savefig(img_filename)
+    plt.close()
 
 
 def showInfo(config, args):
@@ -487,6 +618,41 @@ def showInfo(config, args):
         pprint.pprint(config['global'],indent=2)
 
 
+def computeAvgSignal(summaries, summaryname, spectre):
+    summaries[summaryname] = {}
+    summaries[summaryname]['signal'] = spectre.tolist()
+
+    # AVG signal
+    summaries[summaryname]['min'] = np.min(spectre)
+    summaries[summaryname]['max'] = np.max(spectre)
+    summaries[summaryname]['mean'] = np.mean(spectre)
+    summaries[summaryname]['std'] = np.std(spectre)
+
+    # Compute Ground Noise of signal
+    lensignal = len(spectre)
+    smooth_signal = smooth(spectre,10, 'flat')
+    peakmin = signal.argrelextrema(smooth_signal[:lensignal], np.less)
+    peakmax = signal.argrelextrema(smooth_signal[:lensignal], np.greater)
+
+    peakminidx = []
+    for idx in peakmin[0]:
+        if smooth_signal[:lensignal][idx] < summaries[summaryname]['mean']:
+            peakminidx.append(idx)
+    summaries[summaryname]['peak'] = {}
+    summaries[summaryname]['peak']['min'] = {}
+    summaries[summaryname]['peak']['min']['idx'] = peakminidx
+    summaries[summaryname]['peak']['min']['mean'] = np.mean(spectre[peakminidx])
+    summaries[summaryname]['peak']['min']['std'] = np.std(spectre[peakminidx])
+
+    peakmaxidx = []
+    for idx in peakmax[0]:
+        if smooth_signal[:lensignal][idx] > summaries[summaryname]['mean']:
+            peakmaxidx.append(idx)
+    summaries[summaryname]['peak']['max'] = {}
+    summaries[summaryname]['peak']['max']['idx'] = peakmaxidx
+    summaries[summaryname]['peak']['max']['mean'] = np.mean(spectre[peakmaxidx])
+    summaries[summaryname]['peak']['max']['std'] = np.std(spectre[peakmaxidx])
+
 def summarizeSignal(datas):
     summaries = {}
 
@@ -506,21 +672,100 @@ def summarizeSignal(datas):
     summaries['freq']['end'] = datas['freq_end']
     summaries['freq']['step'] = datas['freq_step']
 
-    # Signals
-    summaries['avg'] = {}
-    summaries['avg']['min'] = np.min(datas['powersignal'])
-    summaries['avg']['max'] = np.max(datas['powersignal'])
-    summaries['avg']['mean'] = np.mean(datas['powersignal'])
-    summaries['avg']['std'] = np.std(datas['powersignal'])
+    # Avg signal
+    avgsignal = np.mean(datas['powersignal'], axis=0)
+    computeAvgSignal(summaries, 'avg', avgsignal)
 
-    # Signals
-    summaries['signal'] = {}
-    summaries['signal']['min'] = np.min(datas['powersignal'], axis=0).tolist()
-    summaries['signal']['max'] = np.max(datas['powersignal'], axis=0).tolist()
-    summaries['signal']['mean'] = np.mean(datas['powersignal'], axis=0).tolist()
-    summaries['signal']['std'] = np.std(datas['powersignal'], axis=0).tolist()
+    # Min signal
+    minsignal = np.min(datas['powersignal'], axis=0)
+    computeAvgSignal(summaries, 'min', minsignal)
+
+    # Max signal
+    maxsignal = np.max(datas['powersignal'], axis=0)
+    computeAvgSignal(summaries, 'max', maxsignal)
+
+    # Delta signal
+    deltasignal = maxsignal - minsignal
+    computeAvgSignal(summaries, 'delta', deltasignal)
 
     return summaries
+
+
+def searchStation(scanlevel, stations, summaries, samples, limitmin, limitmax):
+
+    #search_limit = sorted(limit_list)
+    freqstep = summaries['freq']['step']
+    stations['stations'] = sorted(stations['stations'], key=lambda x: hz2Float(x['freq_center']) - hz2Float((x['bw'])))
+
+    bwmin = hz2Float(scanlevel['minscanbw'])
+    bwmax = hz2Float(scanlevel['maxscanbw'])
+
+
+    limits = np.linspace(limitmin, limitmax, 5)
+    for limit in limits:
+        # Search peak upper than limit
+        startup = -1
+        foundlower = False
+        for idx in np.arange(len(samples)):
+            powerdb = samples[idx]
+            isup = powerdb > limit
+
+            # Search first lower limit signal
+            if not foundlower:
+                if not isup:
+                    foundlower = True
+                else:
+                    continue
+
+
+            # Find first upper
+            if startup == -1:
+                if isup:
+                    startup = idx
+                    maxidx = startup
+                    maxdb = powerdb
+            else:
+                # If upper, check if db is upper
+                if isup:
+                    if powerdb > maxdb:
+                        maxdb = powerdb
+                        maxidx = idx
+                # If lower, calc bandwidth and max db
+                else:
+                    endup = idx - 1
+
+                    bw_nbstep = endup - startup
+                    bw = bw_nbstep * freqstep
+                    freqidx = startup + int(bw_nbstep / 2)
+                    # TODO: compare with freqidx, set % error ?
+                    freq_center = summaries['freq']['start'] + (maxidx * freqstep)
+                    freq_center = summaries['freq']['start'] + (freqidx * freqstep)
+                    freq_left = freq_center - bw
+
+                    deltadb = (maxdb - limit)
+                    if bwmin <= bw <= bwmax and deltadb > scanlevel['minrelativedb']:
+
+                        print "Freq:%s / Bw:%s / Abs: %s dB / From ground:%.2f dB" % (float2Hz(freq_center), float2Hz(bw), maxdb, maxdb - limitmax)
+
+                        found = False
+                        for station in stations['stations']:
+                            if freq_center >= hz2Float(station['freq_center']) - bw and freq_center <= hz2Float(station['freq_center']) + bw:
+                                found = True
+                                break
+
+                        if not found:
+
+                            stations['stations'].append(
+                                {'freq_center': float2Hz(freq_center),
+                                  'bw': float2Hz(bw),
+                                  'powerdb': float("%.2f" % maxdb),
+                                  'relativedb': float("%.2f" % (maxdb - limitmin))
+                                }
+                            )
+                            stations['stations'] = sorted(stations['stations'], key=lambda x: hz2Float(x['freq_center']) - hz2Float(x['bw']))
+
+
+                    startup = -1
 
 
 def scan(config, args):
@@ -538,6 +783,16 @@ def generateSummaries(config, args):
             for left_freq in range:
                 executeSumarizeSignals(config, scanlevel, left_freq)
 
+def searchStations(config, args):
+    if 'scans' in config:
+        for scanlevel in config['scans']:
+            stations_filename = "%s/%s/scanresult.json" % (config['global']['rootdir'],scanlevel['name'])
+            stations = loadStations(stations_filename)
+            range = np.linspace(scanlevel['freq_start'],scanlevel['freq_end'], num=scanlevel['nbstep'], endpoint=False)
+            for left_freq in range:
+                executeSearchStations(config, stations, scanlevel, left_freq)
+
+            saveJSON(stations_filename, stations)
 
 def generateHeatmapParameters(config, args):
     if 'scans' in config:
@@ -547,12 +802,19 @@ def generateHeatmapParameters(config, args):
                 executeHeatmapParameters(config, scanlevel, left_freq)
 
 
-def generateHeatmap(config, args):
+def generateHeatmaps(config, args):
     if 'scans' in config:
         for scanlevel in config['scans']:
             range = np.linspace(scanlevel['freq_start'],scanlevel['freq_end'], num=scanlevel['nbstep'], endpoint=False)
             for left_freq in range:
                 executeHeatmap(config, scanlevel, left_freq)
+
+def generateSpectres(config, args):
+    if 'scans' in config:
+        for scanlevel in config['scans']:
+            range = np.linspace(scanlevel['freq_start'],scanlevel['freq_end'], num=scanlevel['nbstep'], endpoint=False)
+            for left_freq in range:
+                executeSpectre(config, scanlevel, left_freq)
 
 
 def parse_arguments(cmdline=""):
@@ -572,8 +834,10 @@ def parse_arguments(cmdline=""):
             'infos',
             'scan',
             'gensummaries',
+            'searchstations',
             'genheatmapparameters',
-            'genheatmap'
+            'genheatmaps',
+            'genspectres'
         ],
         help='Action'
     )
@@ -625,11 +889,19 @@ def main():
         if 'gensummaries' == args.action:
             generateSummaries(config, args)
 
+        if 'searchstations' == args.action:
+            searchStations(config, args)
+
         if 'genheatmapparameters' == args.action:
             generateHeatmapParameters(config, args)
 
-        if 'genheatmap' == args.action:
-            generateHeatmap(config, args)
+        if 'genheatmaps' == args.action:
+            generateHeatmaps(config, args)
+
+        if 'genspectres' == args.action:
+            generateSpectres(config, args)
+
 
 if __name__ == '__main__':
     main()  # pragma: no cover
+
