@@ -25,6 +25,7 @@ from tabulate import tabulate
 # Todo: In searchstations, save after Nb Loop
 # TODO: rename range into freqs_range
 # TODO: search best bandwith for windows and 1s
+# TODO: Optimise call function, ex: scan,zoomedscan, gensummaries, etc ...as
 
 # Unit conversion
 HzUnities = {'M': 1e6, 'k': 1e3}
@@ -440,8 +441,8 @@ def executeHeatmapParameters(config, scanlevel, start):
     parameters['reversetextorder'] = True
 
     # Db
-    parameters['db'] = {}
-    parameters['db']['mean'] = summaries['avg']['mean']
+    # parameters['db'] = {}
+    # parameters['db']['mean'] = summaries['avg']['mean']
 
     # Text
     parameters['texts'] = []
