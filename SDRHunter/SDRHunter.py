@@ -23,7 +23,8 @@ import scipy.signal as signal
 from tabulate import tabulate
 
 # Todo: In searchstations, save after Nb Loop
-#
+# TODO: rename range into freqs_range
+# TODO: search best bandwith for windows and 1s
 
 # Unit conversion
 HzUnities = {'M': 1e6, 'k': 1e3}
@@ -784,6 +785,20 @@ def scan(config, args):
                 executeRTLPower(config, scanlevel, left_freq)
 
 
+def zoomedscan(config, args):
+    if 'scans' in config:
+        for scanlevel in config['scans']:
+            if 'stationsfilename' in scanlevel:
+                stations = loadJSON(scanlevel['stationsfilename'])
+                confirmed_station = []
+                for station in stations['stations']:
+                    if 'name' in station:
+                        confirmed_station.append(station)
+                for station in confirmed_station:
+                    freq_left = hz2Float(station['freq_center']) - hz2Float(scanlevel['windows'] / 2)
+                    executeRTLPower(config, scanlevel, freq_left)
+
+
 def generateSummaries(config, args):
     if 'scans' in config:
         for scanlevel in config['scans']:
@@ -841,6 +856,7 @@ def parse_arguments(cmdline=""):
         choices=[
             'infos',
             'scan',
+            'zoomedscan',
             'gensummaries',
             'searchstations',
             'genheatmapparameters',
@@ -893,6 +909,9 @@ def main():
 
         if 'scan' == args.action:
             scan(config, args)
+
+        if 'zoomedscan' == args.action:
+            zoomedscan(config, args)
 
         if 'gensummaries' == args.action:
             generateSummaries(config, args)
