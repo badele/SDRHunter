@@ -441,7 +441,7 @@ def executeHeatmapParameters(config, scanlevel, start):
 
     # Db
     parameters['db'] = {}
-    parameters['db']['mean'] = summaries['signal']['avg']['min'] + 5
+    parameters['db']['mean'] = summaries['avg']['mean']
 
     # Text
     parameters['texts'] = []
@@ -451,8 +451,8 @@ def executeHeatmapParameters(config, scanlevel, start):
     parameters['texts'].append({'text': "Std signal: %.2f" % summaries['avg']['std']})
 
     parameters['texts'].append({'text': ""})
-    parameters['texts'].append({'text': "avg min %.2f" % summaries['signal']['avg']['min']})
-    parameters['texts'].append({'text': "std min %.2f" % summaries['signal']['std']['min']})
+    parameters['texts'].append({'text': "avg min %.2f" % summaries['avg']['min']})
+    parameters['texts'].append({'text': "std min %.2f" % summaries['avg']['std']})
 
     saveJSON(params_filename, parameters)
 
