@@ -806,6 +806,17 @@ def generateSummaries(config, args):
             for left_freq in range:
                 executeSumarizeSignals(config, scanlevel, left_freq)
 
+            # For scanlevel with stationsfilename
+            if 'stationsfilename' in scanlevel:
+                stations = loadJSON(scanlevel['stationsfilename'])
+                confirmed_station = []
+                for station in stations['stations']:
+                    if 'name' in station:
+                        confirmed_station.append(station)
+                for station in confirmed_station:
+                    freq_left = hz2Float(station['freq_center']) - hz2Float(scanlevel['windows'] / 2)
+                    executeSumarizeSignals(config, scanlevel, freq_left)
+
 def searchStations(config, args):
     if 'scans' in config:
         for scanlevel in config['scans']:
@@ -824,6 +835,17 @@ def generateHeatmapParameters(config, args):
             for left_freq in range:
                 executeHeatmapParameters(config, scanlevel, left_freq)
 
+            # For scanlevel with stationsfilename
+            if 'stationsfilename' in scanlevel:
+                stations = loadJSON(scanlevel['stationsfilename'])
+                confirmed_station = []
+                for station in stations['stations']:
+                    if 'name' in station:
+                        confirmed_station.append(station)
+                for station in confirmed_station:
+                    freq_left = hz2Float(station['freq_center']) - hz2Float(scanlevel['windows'] / 2)
+                    executeHeatmapParameters(config, scanlevel, freq_left)
+
 
 def generateHeatmaps(config, args):
     if 'scans' in config:
@@ -832,12 +854,34 @@ def generateHeatmaps(config, args):
             for left_freq in range:
                 executeHeatmap(config, scanlevel, left_freq)
 
+            # For scanlevel with stationsfilename
+            if 'stationsfilename' in scanlevel:
+                stations = loadJSON(scanlevel['stationsfilename'])
+                confirmed_station = []
+                for station in stations['stations']:
+                    if 'name' in station:
+                        confirmed_station.append(station)
+                for station in confirmed_station:
+                    freq_left = hz2Float(station['freq_center']) - hz2Float(scanlevel['windows'] / 2)
+                    executeHeatmap(config, scanlevel, freq_left)
+
 def generateSpectres(config, args):
     if 'scans' in config:
         for scanlevel in config['scans']:
             range = np.linspace(scanlevel['freq_start'],scanlevel['freq_end'], num=scanlevel['nbstep'], endpoint=False)
             for left_freq in range:
                 executeSpectre(config, scanlevel, left_freq)
+
+            # For scanlevel with stationsfilename
+            if 'stationsfilename' in scanlevel:
+                stations = loadJSON(scanlevel['stationsfilename'])
+                confirmed_station = []
+                for station in stations['stations']:
+                    if 'name' in station:
+                        confirmed_station.append(station)
+                for station in confirmed_station:
+                    freq_left = hz2Float(station['freq_center']) - hz2Float(scanlevel['windows'] / 2)
+                    executeSpectre(config, scanlevel, freq_left)
 
 
 def parse_arguments(cmdline=""):
