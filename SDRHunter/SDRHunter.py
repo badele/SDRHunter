@@ -507,7 +507,7 @@ def executeHeatmap(config, scanlevel, start):
     )
 
     # Call heatmap.py shell command
-    executeShell(cmd, config['global']['heatmapdir'])
+    executeShell(cmd, config['global']['heatmap']['dirname'])
 
 def executeSpectre(config, scanlevel, start):
     filename = calcFilename(scanlevel, start)
