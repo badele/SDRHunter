@@ -26,6 +26,7 @@ from tabulate import tabulate
 # TODO: rename range into freqs_range
 # TODO: search best bandwith for windows and 1s
 # TODO: Optimise call function, ex: scan,zoomedscan, gensummaries, etc ...as
+# TODO: Analyse if zoomedscan must merge with scan function
 
 # Unit conversion
 HzUnities = {'M': 1e6, 'k': 1e3}
@@ -73,6 +74,11 @@ def loadStations(filename):
 
 def loadConfigFile(filename):
     config = loadJSON(filename)
+
+    # Check global section
+    if 'ppm' not in config['global']:
+        config['global']['ppm'] = 0
+
     if config:
         # Check global field if not exist in scans
         if 'scans' in config['global']:
@@ -312,7 +318,8 @@ def executeRTLPower(config, scanlevel, start):
             float2Sec(scanlevel['quitafter']),
         )
 
-        cmd = "rtl_power -f %s:%s:%s -i %s -e %s %s" % (
+        cmd = "rtl_power -p %s -f %s:%s:%s -i %s -e %s %s" % (
+            config['global']['ppm'],
             start,
             start + scanlevel['windows'],
             scanlevel['binsize'],
@@ -454,6 +461,19 @@ def executeHeatmapParameters(config, scanlevel, start):
     parameters['texts'].append({'text': ""})
     parameters['texts'].append({'text': "avg min %.2f" % summaries['avg']['min']})
     parameters['texts'].append({'text': "std min %.2f" % summaries['avg']['std']})
+
+    # Add sscanlevel stations name in legends
+    if 'stationsfilename' in scanlevel or 'heatmap' in config['global']:
+        parameters['legends'] = []
+
+    if 'stationsfilename' in scanlevel:
+        parameters['legends'].append(scanlevel['stationsfilename'])
+
+    if 'heatmap' in config['global']:
+        # Add global stations name in legends
+        if 'heatmap' in config['global'] and "stationsfilenames" in config['global']['heatmap']:
+            for stationsfilename in config['global']['heatmap']['stationsfilenames']:
+                parameters['legends'].append(stationsfilename)
 
     saveJSON(params_filename, parameters)
 
