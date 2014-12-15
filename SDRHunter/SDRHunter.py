@@ -44,6 +44,9 @@ class tcolor:
     RESET = "\033[2J\033[H"
     BELL = "\a"
 
+def showVerbose(config, mess):
+    if config['global']['verbose']:
+        print mess
 
 def loadJSON(filename):
     exists = os.path.isfile(filename)
@@ -78,6 +81,8 @@ def loadConfigFile(filename):
     # Check global section
     if 'ppm' not in config['global']:
         config['global']['ppm'] = 0
+    if 'verbose' not in config['global']:
+        config['global']['verbose'] = True
 
     if config:
         # Check global field if not exist in scans
@@ -292,11 +297,14 @@ def executeRTLPower(config, scanlevel, start):
     csv_filename = "%s.csv" % filename
     exists = os.path.isfile(csv_filename)
     if exists:
-        print "%sScan '%s' : %shz-%shz already exists%s" % (
-            tcolor.GREEN,
-            scanlevel['name'],
-            float2Hz(start), float2Hz(start + scanlevel['windows']),
-            tcolor.DEFAULT
+        showVerbose(
+            config,
+            "%sScan '%s' : %shz-%shz already exists%s" % (
+                tcolor.GREEN,
+                scanlevel['name'],
+                float2Hz(start), float2Hz(start + scanlevel['windows']),
+                tcolor.DEFAULT
+            )
         )
         return
     else:
@@ -341,10 +349,13 @@ def executeSumarizeSignals(config, scanlevel, start):
     csv_filename = "%s.csv" % filename
     exists = os.path.isfile(csv_filename)
     if not exists:
-        print "%s %s not exist%s" % (
-            tcolor.RED,
-            csv_filename,
-            tcolor.DEFAULT,
+        showVerbose(
+            config,
+            "%s %s not exist%s" % (
+                tcolor.RED,
+                csv_filename,
+                tcolor.DEFAULT,
+            )
         )
         return
 
@@ -352,10 +363,13 @@ def executeSumarizeSignals(config, scanlevel, start):
     summary_filename = "%s.summary" % filename
     exists = os.path.isfile(summary_filename)
     if exists:
-        print "%sSummarize '%s' : %shz-%shz%s" % (
-            tcolor.GREEN,
-            scanlevel['name'], float2Hz(start), float2Hz(start + scanlevel['windows']),
-            tcolor.DEFAULT,
+        showVerbose(
+            config,
+            "%sSummarize '%s' : %shz-%shz%s" % (
+                tcolor.GREEN,
+                scanlevel['name'], float2Hz(start), float2Hz(start + scanlevel['windows']),
+                tcolor.DEFAULT,
+            )
         )
         return
 
@@ -381,10 +395,13 @@ def executeSearchStations(config, stations, scanlevel, start):
     csv_filename = "%s.csv" % filename
     exists = os.path.isfile(csv_filename)
     if not exists:
-        print "%s %s not exist%s" % (
-            tcolor.RED,
-            csv_filename,
-            tcolor.DEFAULT,
+        showVerbose(
+            config,
+            "%s %s not exist%s" % (
+                tcolor.RED,
+                csv_filename,
+                tcolor.DEFAULT,
+            )
         )
         return
 
@@ -392,10 +409,13 @@ def executeSearchStations(config, stations, scanlevel, start):
     summary_filename = "%s.summary" % filename
     exists = os.path.isfile(summary_filename)
     if not exists:
-        print "%s %s not exist%s" % (
-            tcolor.RED,
-            summary_filename,
-            tcolor.DEFAULT,
+        showVerbose(
+            config,
+            "%s %s not exist%s" % (
+                tcolor.RED,
+                summary_filename,
+                tcolor.DEFAULT,
+            )
         )
         return
     summaries = loadJSON(summary_filename)
@@ -421,10 +441,13 @@ def executeHeatmapParameters(config, scanlevel, start):
     summary_filename = "%s.summary" % filename
     exists = os.path.isfile(summary_filename)
     if not exists:
-        print "%s %s not exist%s" % (
-            tcolor.RED,
-            summary_filename,
-            tcolor.DEFAULT,
+        showVerbose(
+            config,
+            "%s %s not exist%s" % (
+                tcolor.RED,
+                summary_filename,
+                tcolor.DEFAULT,
+            )
         )
         return
 
@@ -432,10 +455,13 @@ def executeHeatmapParameters(config, scanlevel, start):
     params_filename = "%s.hparam" % filename
     exists = os.path.isfile(params_filename)
     if exists:
-        print "%sHeatmap Parameter '%s' : %shz-%shz%s" % (
+        showVerbose(
+            config,
+            "%sHeatmap Parameter '%s' : %shz-%shz%s" % (
             tcolor.GREEN,
             scanlevel['name'], float2Hz(start), float2Hz(start + scanlevel['windows']),
             tcolor.DEFAULT,
+            )
         )
         return
 
@@ -486,20 +512,26 @@ def executeHeatmap(config, scanlevel, start):
     csv_filename = "%s.csv" % filename
     exists = os.path.isfile(csv_filename)
     if not exists:
-        print "%s %s not exist%s" % (
-            tcolor.RED,
-            csv_filename,
-            tcolor.DEFAULT,
+        showVerbose(
+            config,
+            "%s %s not exist%s" % (
+                tcolor.RED,
+                csv_filename,
+                tcolor.DEFAULT,
+            )
         )
         return
 
     params_filename = "%s.hparam" % filename
     exists = os.path.isfile(params_filename)
     if not exists:
-        print "%s %s not exist%s" % (
-            tcolor.RED,
-            params_filename,
-            tcolor.DEFAULT,
+        showVerbose(
+            config,
+            "%s %s not exist%s" % (
+                tcolor.RED,
+                params_filename,
+                tcolor.DEFAULT,
+            )
         )
         return
 
@@ -507,10 +539,13 @@ def executeHeatmap(config, scanlevel, start):
     img_filename = "%s_heatmap.png" % filename
     exists = os.path.isfile(img_filename)
     if exists:
-        print "%sHeatmap '%s' : %shz-%shz%s" % (
-            tcolor.GREEN,
-            scanlevel['name'], float2Hz(start), float2Hz(start + scanlevel['windows']),
-            tcolor.DEFAULT
+        showVerbose(
+            config,
+             "%sHeatmap '%s' : %shz-%shz%s" % (
+                        tcolor.GREEN,
+                        scanlevel['name'], float2Hz(start), float2Hz(start + scanlevel['windows']),
+                        tcolor.DEFAULT
+            )
         )
         return
 
@@ -535,10 +570,13 @@ def executeSpectre(config, scanlevel, start):
     csv_filename = "%s.csv" % filename
     exists = os.path.isfile(csv_filename)
     if not exists:
-        print "%s %s not exist%s" % (
-            tcolor.RED,
-            csv_filename,
-            tcolor.DEFAULT,
+        showVerbose(
+            config,
+            "%s %s not exist%s" % (
+                tcolor.RED,
+                csv_filename,
+                tcolor.DEFAULT,
+            )
         )
         return
 
@@ -546,10 +584,13 @@ def executeSpectre(config, scanlevel, start):
     summary_filename = "%s.summary" % filename
     exists = os.path.isfile(summary_filename)
     if not exists:
-        print "%s %s not exist%s" % (
-            tcolor.RED,
-            summary_filename,
-            tcolor.DEFAULT,
+        showVerbose(
+            config,
+            "%s %s not exist%s" % (
+                tcolor.RED,
+                summary_filename,
+                tcolor.DEFAULT,
+            )
         )
         return
     summaries = loadJSON(summary_filename)
@@ -558,10 +599,13 @@ def executeSpectre(config, scanlevel, start):
     img_filename = "%s_spectre.png" % filename
     exists = os.path.isfile(img_filename)
     if exists:
-        print "%sSpectre '%s' : %shz-%shz%s" % (
-            tcolor.GREEN,
-            scanlevel['name'], float2Hz(start), float2Hz(start + scanlevel['windows']),
-            tcolor.DEFAULT
+        showVerbose(
+            config,
+            "%sSpectre '%s' : %shz-%shz%s" % (
+                tcolor.GREEN,
+                scanlevel['name'], float2Hz(start), float2Hz(start + scanlevel['windows']),
+                tcolor.DEFAULT
+            )
         )
         return
 
