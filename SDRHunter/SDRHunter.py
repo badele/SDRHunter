@@ -117,13 +117,13 @@ def loadConfigFile(filename):
             scanlevel['windows'] = hz2Float(scanlevel['windows'])
             scanlevel['interval'] = sec2Float(scanlevel['interval'])
             scanlevel['quitafter'] = sec2Float(scanlevel['interval']) * scanlevel['nbsamples_lines']
-            scanlevel['scandir'] = "%s/%s" % (config['global']['rootdir'], scanlevel['name'])
+            scanlevel['scandir'] = "%s/%s/%s" % (config['global']['rootdir'], config['global']['scanlocation'], scanlevel['name'])
             scanlevel['binsize'] = np.ceil(scanlevel['windows'] / (scanlevel['nbsamples_freqs'] - 1))
 
             # Check multiple windows
             if (scanlevel['delta'] % scanlevel['windows']) != 0:
-                step = int((scanlevel['delta'] / (scanlevel['windows'] - (hz2Float(scanlevel['windows']) / 2))))
-                scanlevel['freq_end'] = scanlevel['freq_start'] + ((step + 1) * scanlevel['windows'])
+                #step = int((scanlevel['delta'] / (scanlevel['windows'] - (hz2Float(scanlevel['windows']) / 2))))
+                scanlevel['freq_end'] = scanlevel['freq_end'] + (scanlevel['windows'] - (scanlevel['delta'] % scanlevel['windows']))
                 scanlevel['delta'] = scanlevel['freq_end'] - scanlevel['freq_start']
 
             scanlevel['nbstep'] = scanlevel['delta'] / (scanlevel['windows'] - (hz2Float(scanlevel['windows']) / 2))
@@ -774,7 +774,6 @@ def searchStation(scanlevel, stations, summaries, samples, limitmin, limitmax):
     bwmin = hz2Float(scanlevel['minscanbw'])
     bwmax = hz2Float(scanlevel['maxscanbw'])
 
-
     limits = np.linspace(limitmin, limitmax, 5)
     for limit in limits:
         # Search peak upper than limit
@@ -885,7 +884,7 @@ def generateSummaries(config, args):
 def searchStations(config, args):
     if 'scans' in config:
         for scanlevel in config['scans']:
-            stations_filename = "%s/%s/scanresult.json" % (config['global']['rootdir'],scanlevel['name'])
+            stations_filename = "%s/%s/scanresult.json" % (config['global']['rootdir'], config['global']['scanlocation'])
             stations = loadStations(stations_filename)
             range = np.linspace(scanlevel['freq_start'],scanlevel['freq_end'], num=scanlevel['nbstep'], endpoint=False)
             for left_freq in range:
