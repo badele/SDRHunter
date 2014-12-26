@@ -85,7 +85,7 @@ def loadConfigFile(filename):
         config['global']['verbose'] = True
 
     if config:
-        # Check global field if not exist in scans
+        # Check global field if not exist in scanlevel
         if 'scans' in config['global']:
             for field in config['global']['scans']:
                 for scanlevel in config['scans']:
@@ -94,7 +94,7 @@ def loadConfigFile(filename):
 
         # Check required scan param
         for scanlevel in config['scans']:
-            required = ['name', 'freq_start', 'freq_end', 'interval']
+            required = ['name', 'freq_start', 'freq_end', 'interval', 'splitwindows']
             for require in required:
                 if require not in scanlevel:
                     raise Exception("key '%s' required in %s" % (require, scanlevel))
@@ -126,7 +126,10 @@ def loadConfigFile(filename):
                 scanlevel['freq_end'] = scanlevel['freq_end'] + (scanlevel['windows'] - (scanlevel['delta'] % scanlevel['windows']))
                 scanlevel['delta'] = scanlevel['freq_end'] - scanlevel['freq_start']
 
-            scanlevel['nbstep'] = scanlevel['delta'] / (scanlevel['windows'] - (hz2Float(scanlevel['windows']) / 2))
+            if scanlevel['splitwindows']:
+                scanlevel['nbstep'] = scanlevel['delta'] / (scanlevel['windows'] - (hz2Float(scanlevel['windows']) / 2))
+            else:
+                scanlevel['nbstep'] = scanlevel['delta'] / scanlevel['windows']
 
             # Check if width if puissance of ^2
             if int(np.log2(scanlevel['nbsamples_freqs'])) != np.log2(scanlevel['nbsamples_freqs']):
