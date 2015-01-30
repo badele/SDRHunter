@@ -4,6 +4,19 @@ About
 These tools help for recording the sound from rtl_fm
 
 
+Configuration
+=============
+
+For some configuration, you must edit the variables from scripts files, ex :
+
+.. code-block:: console
+
+    PPM=57
+    GAIN=49.2
+    FORMAT="flac"
+    ROOTDIR=~/tmp/sdr
+    PLAYFREQ=12000
+
 Howto use
 =========
 
