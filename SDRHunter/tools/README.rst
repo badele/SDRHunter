@@ -31,3 +31,10 @@ Record the stations
 .. code-block:: console
 
     $ ./record_stations.sh am airport 280 "-f 130M -f 132M"
+
+After records, you can rename the files with the date of sound.
+
+.. code-block:: console
+
+    $ ./record_rename.py ~/tmp/sdr
+
