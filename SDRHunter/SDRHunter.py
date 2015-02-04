@@ -239,12 +239,12 @@ def smooth(x,window_len=11,window='hanning'):
 def calcFilename(scanlevel, start):
     filename = "%s/%sHz-%sHz-%07.2fdB-%sHz-%s-%s" % (
         scanlevel['scandir'],
-        commons.float2Hz(start, True),
-        commons.float2Hz(start + scanlevel['windows'], True),
+        commons.float2Hz(start, 2, True),
+        commons.float2Hz(start + scanlevel['windows'], 2, True),
         scanlevel['gain'],
-        commons.float2Hz(scanlevel['binsize'], True),
-        commons.commons.float2Sec(scanlevel['interval']),
-        commons.commons.float2Sec(scanlevel['quitafter'])
+        commons.float2Hz(scanlevel['binsize'], 2, True),
+        commons.float2Sec(scanlevel['interval']),
+        commons.float2Sec(scanlevel['quitafter'])
     )
 
     return filename
