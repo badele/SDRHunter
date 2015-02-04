@@ -22,6 +22,8 @@ import numpy as np
 import scipy.signal as signal
 from tabulate import tabulate
 
+import commons
+
 # Todo: In searchstations, save after Nb Loop
 # TODO: rename range into freqs_range
 # TODO: search best bandwith for windows and 1s
@@ -75,14 +77,25 @@ def loadStations(filename):
 
     return stations
 
-def loadConfigFile(filename):
-    config = loadJSON(filename)
+def loadConfigFile(args):
+    config = loadJSON(args.filename)
 
     # Check global section
     if 'ppm' not in config['global']:
         config['global']['ppm'] = 0
+    if 'gain' not in config['global']:
+        config['global']['gain'] = "automatic"
     if 'verbose' not in config['global']:
         config['global']['verbose'] = True
+
+    # Check in global scan section
+    if 'scans' not in config['global']:
+        config['global']['scans'] = {}
+    if 'splitwindows' not in config['global']['scans']:
+        config['global']['scans']['splitwindows'] = False
+    if 'scanfromstations' not in config['global']['scans']:
+        config['global']['scans']['scanfromstations'] = False
+
 
     if config:
         # Check global field if not exist in scanlevel
@@ -103,31 +116,32 @@ def loadConfigFile(filename):
         # set windows var if not exist config exist
         for scanlevel in config['scans']:
             if 'windows' not in scanlevel:
-                freqstart = hz2Float(scanlevel['freq_start'])
-                freqend = hz2Float(scanlevel['freq_end'])
+                freqstart = commons.hz2Float(scanlevel['freq_start'])
+                freqend = commons.hz2Float(scanlevel['freq_end'])
                 scanlevel['windows'] = freqend - freqstart
 
 
         # Convert value to float
         for scanlevel in config['scans']:
             # Set vars
-            scanlevel['freq_start'] = hz2Float(scanlevel['freq_start'])
-            scanlevel['freq_end'] = hz2Float(scanlevel['freq_end'])
+            scanlevel['freq_start'] = commons.hz2Float(scanlevel['freq_start'])
+            scanlevel['freq_end'] = commons.hz2Float(scanlevel['freq_end'])
             scanlevel['delta'] = scanlevel['freq_end'] - scanlevel['freq_start']
-            scanlevel['windows'] = hz2Float(scanlevel['windows'])
-            scanlevel['interval'] = sec2Float(scanlevel['interval'])
-            scanlevel['quitafter'] = sec2Float(scanlevel['interval']) * scanlevel['nbsamples_lines']
-            scanlevel['scandir'] = "%s/%s/%s" % (config['global']['rootdir'], config['global']['scanlocation'], scanlevel['name'])
+            scanlevel['windows'] = commons.hz2Float(scanlevel['windows'])
+            scanlevel['interval'] = commons.sec2Float(scanlevel['interval'])
+            scanlevel['quitafter'] = commons.sec2Float(scanlevel['interval']) * scanlevel['nbsamples_lines']
+            scanlevel['scandir'] = "%s/%s/%s" % (config['global']['rootdir'], args.location, scanlevel['name'])
+            scanlevel['gain'] = config['global']['gain']
             scanlevel['binsize'] = np.ceil(scanlevel['windows'] / (scanlevel['nbsamples_freqs'] - 1))
 
             # Check multiple windows
             if (scanlevel['delta'] % scanlevel['windows']) != 0:
-                #step = int((scanlevel['delta'] / (scanlevel['windows'] - (hz2Float(scanlevel['windows']) / 2))))
+                #step = int((scanlevel['delta'] / (scanlevel['windows'] - (commons.hz2Float(scanlevel['windows']) / 2))))
                 scanlevel['freq_end'] = scanlevel['freq_end'] + (scanlevel['windows'] - (scanlevel['delta'] % scanlevel['windows']))
                 scanlevel['delta'] = scanlevel['freq_end'] - scanlevel['freq_start']
 
             if scanlevel['splitwindows']:
-                scanlevel['nbstep'] = scanlevel['delta'] / (scanlevel['windows'] - (hz2Float(scanlevel['windows']) / 2))
+                scanlevel['nbstep'] = scanlevel['delta'] / (scanlevel['windows'] - (commons.hz2Float(scanlevel['windows']) / 2))
             else:
                 scanlevel['nbstep'] = scanlevel['delta'] / scanlevel['windows']
 
@@ -196,47 +210,6 @@ def loadCSVFile(filename):
     return {'freq_start': globalfreq_start, 'freq_end': globalfreq_end, 'freq_step': linefreq_step, 'times': times, 'powersignal': powersignal}
 
 
-def unity2Float(stringvalue, unityobject):
-    # If allready number, we consider is the Hz
-    if isinstance(stringvalue, int) or isinstance(stringvalue, float):
-        return stringvalue
-
-    floatvalue = float(stringvalue[:-1])
-    unity = stringvalue[-1]
-    if not (unity.lower() in unityobject or unity.upper() in unityobject):
-        raise Exception("Not unity found '%s' " % stringvalue)
-
-    floatvalue = floatvalue * unityobject[unity]
-    return floatvalue
-
-
-def hz2Float(stringvalue):
-    return unity2Float(stringvalue, HzUnities)
-
-
-def sec2Float(stringvalue):
-    return unity2Float(stringvalue, secUnities)
-
-def float2Unity(value, unityobject):
-    unitysorted = sorted(unityobject, key=lambda x: unityobject[x], reverse=True)
-
-    result = value
-    for unity in unitysorted:
-        if value >= unityobject[unity]:
-            result = "%.2f%s" % (value / unityobject[unity], unity)
-            break
-
-
-    return result
-
-
-def float2Sec(value):
-    return float2Unity(value, secUnities)
-
-
-def float2Hz(value):
-    return float2Unity(value, HzUnities)
-
 def smooth(x,window_len=11,window='hanning'):
     # http://wiki.scipy.org/Cookbook/SignalSmooth
     if x.ndim != 1:
@@ -264,13 +237,14 @@ def smooth(x,window_len=11,window='hanning'):
     return y
 
 def calcFilename(scanlevel, start):
-    filename = "%s/%sHz-%sHz-%sHz-%s-%s" % (
+    filename = "%s/%sHz-%sHz-%07.2fdB-%sHz-%s-%s" % (
         scanlevel['scandir'],
-        float2Hz(start),
-        float2Hz(start + scanlevel['windows']),
-        float2Hz(scanlevel['binsize']),
-        float2Sec(scanlevel['interval']),
-        float2Sec(scanlevel['quitafter'])
+        commons.float2Hz(start, True),
+        commons.float2Hz(start + scanlevel['windows'], True),
+        scanlevel['gain'],
+        commons.float2Hz(scanlevel['binsize'], True),
+        commons.commons.float2Sec(scanlevel['interval']),
+        commons.commons.float2Sec(scanlevel['quitafter'])
     )
 
     return filename
@@ -305,7 +279,7 @@ def executeRTLPower(config, scanlevel, start):
             "%sScan '%s' : %shz-%shz already exists%s" % (
                 tcolor.GREEN,
                 scanlevel['name'],
-                float2Hz(start), float2Hz(start + scanlevel['windows']),
+                commons.float2Hz(start), commons.float2Hz(start + scanlevel['windows']),
                 tcolor.DEFAULT
             )
         )
@@ -317,20 +291,21 @@ def executeRTLPower(config, scanlevel, start):
             print "%sScan '%s' : delete old running file %shz-%shz" % (
                 tcolor.DEFAULT,
                 scanlevel['name'],
-                float2Hz(start), float2Hz(start + scanlevel['windows']),
+                commons.float2Hz(start), commons.float2Hz(start + scanlevel['windows']),
             )
             os.remove(running_filename)
 
         print "%sScan '%s' : %shz-%shz Begin: %s / Finish in: ~%s" % (
             tcolor.DEFAULT,
             scanlevel['name'],
-            float2Hz(start), float2Hz(start + scanlevel['windows']),
+            commons.float2Hz(start), commons.float2Hz(start + scanlevel['windows']),
             time.strftime("%H:%M:%S", time.localtime()),
-            float2Sec(scanlevel['quitafter']),
+            commons.float2Sec(scanlevel['quitafter']),
         )
 
-        cmd = "rtl_power -p %s -f %s:%s:%s -i %s -e %s %s" % (
+        cmd = "rtl_power -p %s -g %s -f %s:%s:%s -i %s -e %s %s" % (
             config['global']['ppm'],
+            config['global']['gain'],
             start,
             start + scanlevel['windows'],
             scanlevel['binsize'],
@@ -370,7 +345,7 @@ def executeSumarizeSignals(config, scanlevel, start):
             config,
             "%sSummarize '%s' : %shz-%shz%s" % (
                 tcolor.GREEN,
-                scanlevel['name'], float2Hz(start), float2Hz(start + scanlevel['windows']),
+                scanlevel['name'], commons.float2Hz(start), commons.float2Hz(start + scanlevel['windows']),
                 tcolor.DEFAULT,
             )
         )
@@ -378,7 +353,7 @@ def executeSumarizeSignals(config, scanlevel, start):
 
     print "%sSummarize '%s' : %shz-%shz" % (
         tcolor.DEFAULT,
-        scanlevel['name'], float2Hz(start), float2Hz(start + scanlevel['windows']),
+        scanlevel['name'], commons.float2Hz(start), commons.float2Hz(start + scanlevel['windows']),
     )
 
 
@@ -425,7 +400,7 @@ def executeSearchStations(config, stations, scanlevel, start):
 
     print "%sFind stations '%s' : %shz-%shz" % (
         tcolor.DEFAULT,
-        scanlevel['name'], float2Hz(start), float2Hz(start + scanlevel['windows']),
+        scanlevel['name'], commons.float2Hz(start), commons.float2Hz(start + scanlevel['windows']),
     )
 
     smooth_max = smooth(np.array(summaries['max']['signal']),10, 'flat')
@@ -462,7 +437,7 @@ def executeHeatmapParameters(config, scanlevel, start):
             config,
             "%sHeatmap Parameter '%s' : %shz-%shz%s" % (
             tcolor.GREEN,
-            scanlevel['name'], float2Hz(start), float2Hz(start + scanlevel['windows']),
+            scanlevel['name'], commons.float2Hz(start), commons.float2Hz(start + scanlevel['windows']),
             tcolor.DEFAULT,
             )
         )
@@ -470,15 +445,17 @@ def executeHeatmapParameters(config, scanlevel, start):
 
     print "%sHeatmap Parameter '%s' : %shz-%shz" % (
         tcolor.DEFAULT,
-        scanlevel['name'], float2Hz(start), float2Hz(start + scanlevel['windows']),
+        scanlevel['name'], commons.float2Hz(start), commons.float2Hz(start + scanlevel['windows']),
     )
 
     parameters = {}
     parameters['reversetextorder'] = True
 
     # Db
-    # parameters['db'] = {}
-    # parameters['db']['mean'] = summaries['avg']['mean']
+    #parameters['db'] = {}
+    ##parameters['db']['mean'] = summaries['avg']['mean']
+    #parameters['db']['min'] = summaries['avg']['min']
+    #parameters['db']['max'] = summaries['avg']['max']
 
     # Text
     parameters['texts'] = []
@@ -546,7 +523,7 @@ def executeHeatmap(config, scanlevel, start):
             config,
              "%sHeatmap '%s' : %shz-%shz%s" % (
                         tcolor.GREEN,
-                        scanlevel['name'], float2Hz(start), float2Hz(start + scanlevel['windows']),
+                        scanlevel['name'], commons.float2Hz(start), commons.float2Hz(start + scanlevel['windows']),
                         tcolor.DEFAULT
             )
         )
@@ -554,7 +531,7 @@ def executeHeatmap(config, scanlevel, start):
 
     print "%sHeatmap '%s' : %shz-%shz" % (
         tcolor.DEFAULT,
-        scanlevel['name'], float2Hz(start), float2Hz(start + scanlevel['windows']),
+        scanlevel['name'], commons.float2Hz(start), commons.float2Hz(start + scanlevel['windows']),
     )
 
     # Check calc or check if Heatmap paramters exists
@@ -563,6 +540,7 @@ def executeHeatmap(config, scanlevel, start):
         csv_filename,
         img_filename
     )
+    print cmd
 
     # Call heatmap.py shell command
     executeShell(cmd, config['global']['heatmap']['dirname'])
@@ -606,7 +584,7 @@ def executeSpectre(config, scanlevel, start):
             config,
             "%sSpectre '%s' : %shz-%shz%s" % (
                 tcolor.GREEN,
-                scanlevel['name'], float2Hz(start), float2Hz(start + scanlevel['windows']),
+                scanlevel['name'], commons.float2Hz(start), commons.float2Hz(start + scanlevel['windows']),
                 tcolor.DEFAULT
             )
         )
@@ -614,7 +592,7 @@ def executeSpectre(config, scanlevel, start):
 
     print "%sSpectre '%s' : %shz-%shz" % (
         tcolor.DEFAULT,
-        scanlevel['name'], float2Hz(start), float2Hz(start + scanlevel['windows']),
+        scanlevel['name'], commons.float2Hz(start), commons.float2Hz(start + scanlevel['windows']),
     )
 
     plt.figure(figsize=(15,10))
@@ -637,7 +615,7 @@ def executeSpectre(config, scanlevel, start):
     # Set X Limit
     locs, labels = plt.xticks()
     for idx in range(len(labels)):
-        labels[idx] = float2Hz(locs[idx])
+        labels[idx] = commons.float2Hz(locs[idx])
     plt.xticks(locs, labels)
     plt.xlabel('Freq in Hz')
 
@@ -674,12 +652,12 @@ def showInfo(config, args):
         for scanlevel in config['scans']:
             result_scan.append(
                 [
-                    "%sHz" % float2Hz(scanlevel['freq_start']),
-                    "%sHz" % float2Hz(scanlevel['freq_end']),
-                    "%sHz" % float2Hz(scanlevel['windows']),
-                    float2Sec(scanlevel['interval']),
+                    "%sHz" % commons.float2Hz(scanlevel['freq_start']),
+                    "%sHz" % commons.float2Hz(scanlevel['freq_end']),
+                    "%sHz" % commons.float2Hz(scanlevel['windows']),
+                    commons.float2Sec(scanlevel['interval']),
                     scanlevel['nbsamples_lines'],
-                    float2Sec(sec2Float(scanlevel['interval']) * scanlevel['nbsamples_lines']),
+                    commons.float2Sec(commons.sec2Float(scanlevel['interval']) * scanlevel['nbsamples_lines']),
                     # scanlevel['quitafter'],
                     scanlevel['maxlevel_legend'],
                 ]
@@ -772,10 +750,10 @@ def searchStation(scanlevel, stations, summaries, samples, limitmin, limitmax):
 
     #search_limit = sorted(limit_list)
     freqstep = summaries['freq']['step']
-    stations['stations'] = sorted(stations['stations'], key=lambda x: hz2Float(x['freq_center']) - hz2Float((x['bw'])))
+    stations['stations'] = sorted(stations['stations'], key=lambda x: commons.hz2Float(x['freq_center']) - commons.hz2Float((x['bw'])))
 
-    bwmin = hz2Float(scanlevel['minscanbw'])
-    bwmax = hz2Float(scanlevel['maxscanbw'])
+    bwmin = commons.hz2Float(scanlevel['minscanbw'])
+    bwmax = commons.hz2Float(scanlevel['maxscanbw'])
 
     limits = np.linspace(limitmin, limitmax, 5)
     for limit in limits:
@@ -821,24 +799,24 @@ def searchStation(scanlevel, stations, summaries, samples, limitmin, limitmax):
                     deltadb = (maxdb - limit)
                     if bwmin <= bw <= bwmax and deltadb > scanlevel['minrelativedb']:
 
-                        print "Freq:%s / Bw:%s / Abs: %s dB / From ground:%.2f dB" % (float2Hz(freq_center), float2Hz(bw), maxdb, maxdb - limitmax)
+                        print "Freq:%s / Bw:%s / Abs: %s dB / From ground:%.2f dB" % (commons.float2Hz(freq_center), commons.float2Hz(bw), maxdb, maxdb - limitmax)
 
                         found = False
                         for station in stations['stations']:
-                            if freq_center >= hz2Float(station['freq_center']) - bw and freq_center <= hz2Float(station['freq_center']) + bw:
+                            if freq_center >= commons.hz2Float(station['freq_center']) - bw and freq_center <= commons.hz2Float(station['freq_center']) + bw:
                                 found = True
                                 break
 
                         if not found:
 
                             stations['stations'].append(
-                                {'freq_center': float2Hz(freq_center),
-                                  'bw': float2Hz(bw),
+                                {'freq_center': commons.float2Hz(freq_center),
+                                  'bw': commons.float2Hz(bw),
                                   'powerdb': float("%.2f" % maxdb),
                                   'relativedb': float("%.2f" % (maxdb - limitmin))
                                 }
                             )
-                            stations['stations'] = sorted(stations['stations'], key=lambda x: hz2Float(x['freq_center']) - hz2Float(x['bw']))
+                            stations['stations'] = sorted(stations['stations'], key=lambda x: commons.hz2Float(x['freq_center']) - commons.hz2Float(x['bw']))
 
 
                     startup = -1
@@ -847,22 +825,23 @@ def searchStation(scanlevel, stations, summaries, samples, limitmin, limitmax):
 def scan(config, args):
     if 'scans' in config:
         for scanlevel in config['scans']:
-            range = np.linspace(scanlevel['freq_start'],scanlevel['freq_end'], num=scanlevel['nbstep'], endpoint=False)
-            for left_freq in range:
-                executeRTLPower(config, scanlevel, left_freq)
+            if not scanlevel['scanfromstations']:
+                range = np.linspace(scanlevel['freq_start'],scanlevel['freq_end'], num=scanlevel['nbstep'], endpoint=False)
+                for left_freq in range:
+                    executeRTLPower(config, scanlevel, left_freq)
 
 
 def zoomedscan(config, args):
     if 'scans' in config:
         for scanlevel in config['scans']:
-            if 'stationsfilename' in scanlevel:
+            if scanlevel['scanfromstations']:
                 stations = loadJSON(scanlevel['stationsfilename'])
                 confirmed_station = []
                 for station in stations['stations']:
                     if 'name' in station:
                         confirmed_station.append(station)
                 for station in confirmed_station:
-                    freq_left = hz2Float(station['freq_center']) - hz2Float(scanlevel['windows'] / 2)
+                    freq_left = commons.hz2Float(station['freq_center']) - commons.hz2Float(scanlevel['windows'] / 2)
                     executeRTLPower(config, scanlevel, freq_left)
 
 
@@ -881,13 +860,13 @@ def generateSummaries(config, args):
                     if 'name' in station:
                         confirmed_station.append(station)
                 for station in confirmed_station:
-                    freq_left = hz2Float(station['freq_center']) - hz2Float(scanlevel['windows'] / 2)
+                    freq_left = commons.hz2Float(station['freq_center']) - commons.hz2Float(scanlevel['windows'] / 2)
                     executeSumarizeSignals(config, scanlevel, freq_left)
 
 def searchStations(config, args):
     if 'scans' in config:
         for scanlevel in config['scans']:
-            stations_filename = "%s/%s/scanresult.json" % (config['global']['rootdir'], config['global']['scanlocation'])
+            stations_filename = "%s/%s/scanresult.json" % (config['global']['rootdir'], args.location)
             stations = loadStations(stations_filename)
             range = np.linspace(scanlevel['freq_start'],scanlevel['freq_end'], num=scanlevel['nbstep'], endpoint=False)
             for left_freq in range:
@@ -910,7 +889,7 @@ def generateHeatmapParameters(config, args):
                     if 'name' in station:
                         confirmed_station.append(station)
                 for station in confirmed_station:
-                    freq_left = hz2Float(station['freq_center']) - hz2Float(scanlevel['windows'] / 2)
+                    freq_left = commons.hz2Float(station['freq_center']) - commons.hz2Float(scanlevel['windows'] / 2)
                     executeHeatmapParameters(config, scanlevel, freq_left)
 
 
@@ -929,7 +908,7 @@ def generateHeatmaps(config, args):
                     if 'name' in station:
                         confirmed_station.append(station)
                 for station in confirmed_station:
-                    freq_left = hz2Float(station['freq_center']) - hz2Float(scanlevel['windows'] / 2)
+                    freq_left = commons.hz2Float(station['freq_center']) - commons.hz2Float(scanlevel['windows'] / 2)
                     executeHeatmap(config, scanlevel, freq_left)
 
 def generateSpectres(config, args):
@@ -947,7 +926,7 @@ def generateSpectres(config, args):
                     if 'name' in station:
                         confirmed_station.append(station)
                 for station in confirmed_station:
-                    freq_left = hz2Float(station['freq_center']) - hz2Float(scanlevel['windows'] / 2)
+                    freq_left = commons.hz2Float(station['freq_center']) - commons.hz2Float(scanlevel['windows'] / 2)
                     executeSpectre(config, scanlevel, freq_left)
 
 
@@ -975,6 +954,14 @@ def parse_arguments(cmdline=""):
             'genspectres'
         ],
         help='Action'
+    )
+
+    parser.add_argument(
+        '-l', '--location',
+        action='store',
+        dest='location',
+        required=True,
+        help='Scan location'
     )
 
     parser.add_argument(
@@ -1009,7 +996,7 @@ def main():
     args = parse_arguments(sys.argv[1:])  # pragma: no cover
 
     # Load JSON config
-    config = loadConfigFile(args.filename)
+    config = loadConfigFile(args)
     if not config:
         raise Exception("No infos found in %s" % args.filename)
 
