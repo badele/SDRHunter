@@ -83,8 +83,8 @@ def loadConfigFile(args):
     # Check global section
     if 'ppm' not in config['global']:
         config['global']['ppm'] = 0
-    if 'gain' not in config['global']:
-        config['global']['gain'] = "automatic"
+    if 'gains' not in config['global']:
+        config['global']['gains'] = [0, 25, 50]
     if 'verbose' not in config['global']:
         config['global']['verbose'] = True
 
@@ -131,7 +131,7 @@ def loadConfigFile(args):
             scanlevel['interval'] = commons.sec2Float(scanlevel['interval'])
             scanlevel['quitafter'] = commons.sec2Float(scanlevel['interval']) * scanlevel['nbsamples_lines']
             scanlevel['scandir'] = "%s/%s/%s" % (config['global']['rootdir'], args.location, scanlevel['name'])
-            scanlevel['gain'] = config['global']['gain']
+            scanlevel['gains'] = config['global']['gains']
             scanlevel['binsize'] = np.ceil(scanlevel['windows'] / (scanlevel['nbsamples_freqs'] - 1))
 
             # Check multiple windows
@@ -154,95 +154,13 @@ def loadConfigFile(args):
     return None
 
 
-def loadCSVFile(filename):
-
-    exists = os.path.isfile(filename)
-    if not exists:
-        return None
-
-    # Load a file
-    f = open(filename,"rb")
-
-    scaninfo = OrderedDict()
-    timelist = OrderedDict()
-    for line in f:
-        line = [s.strip() for s in line.strip().split(',')]
-        line = [s for s in line if s]
-
-        # Get freq for CSV line
-        linefreq_start = float(line[2])
-        linefreq_end = float(line[3])
-        linefreq_step = float(line[4])
-        freqkey = (linefreq_start, linefreq_end, linefreq_step)
-
-        nbsamples4line = int(np.round((linefreq_end - linefreq_start) / linefreq_step))
-
-        # Calc time key
-        dtime = '%s %s' % (line[0], line[1])
-        if dtime not in timelist:
-            timelist[dtime] = np.array([])
-
-        # Add a uniq freq key
-        if freqkey not in scaninfo:
-            scaninfo[freqkey] = None
-
-        # Get power dB
-        linepower = [float(value) for value in line[6:nbsamples4line + 6]]
-        timelist[dtime] = np.append(timelist[dtime], linepower)
-
-    nbsubrange = len(scaninfo)
-    globalfreq_start = float(scaninfo.items()[0][0][0])
-    globalfreq_end = float(scaninfo.items()[nbsubrange - 1][0][1])
-
-    nblines = len(timelist)
-    nbstep = int(np.round((globalfreq_end - globalfreq_start) / linefreq_step))
-
-    if (nbsamples4line * nbsubrange) != nbstep:
-        raise Exception('No same numbers samples')
-
-    times = timelist.keys()
-    powersignal = np.array([])
-    for freqkey, content in timelist.items():
-        powersignal = np.append(powersignal, content)
-
-    powersignal = powersignal.reshape((nblines,nbstep))
-
-    return {'freq_start': globalfreq_start, 'freq_end': globalfreq_end, 'freq_step': linefreq_step, 'times': times, 'powersignal': powersignal}
-
-
-def smooth(x,window_len=11,window='hanning'):
-    # http://wiki.scipy.org/Cookbook/SignalSmooth
-    if x.ndim != 1:
-        raise ValueError, "smooth only accepts 1 dimension arrays."
-
-    if x.size < window_len:
-        raise ValueError, "Input vector needs to be bigger than window size."
-
-
-    if window_len<3:
-        return x
-
-
-    if not window in ['flat', 'hanning', 'hamming', 'bartlett', 'blackman']:
-        raise ValueError, "Window is on of 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'"
-
-
-    s=np.r_[x[window_len-1:0:-1],x,x[-1:-window_len:-1]]
-    if window == 'flat': #moving average
-        w=np.ones(window_len,'d')
-    else:
-        w=eval('numpy.'+window+'(window_len)')
-
-    y=np.convolve(w/w.sum(),s,mode='valid')
-    return y
-
-def calcFilename(scanlevel, start):
+def calcFilename(scanlevel, start, gain):
     filename = "%s/%sHz-%sHz-%07.2fdB-%sHz-%s-%s" % (
         scanlevel['scandir'],
-        commons.float2Hz(start, 2, True),
-        commons.float2Hz(start + scanlevel['windows'], 2, True),
-        scanlevel['gain'],
-        commons.float2Hz(scanlevel['binsize'], 2, True),
+        commons.float2Hz(start, 3, True),
+        commons.float2Hz(start + scanlevel['windows'], 3, True),
+        gain,
+        commons.float2Hz(scanlevel['binsize'], 3, True),
         commons.float2Sec(scanlevel['interval']),
         commons.float2Sec(scanlevel['quitafter'])
     )
@@ -268,100 +186,102 @@ def executeRTLPower(config, scanlevel, start):
     if not os.path.isdir(scanlevel['scandir']):
         os.makedirs(scanlevel['scandir'])
 
-    filename = calcFilename(scanlevel, start)
+    for gain in scanlevel['gains']:
+        filename = calcFilename(scanlevel, start, gain)
 
-    # Ignore call rtl_power if file already exist
-    csv_filename = "%s.csv" % filename
-    exists = os.path.isfile(csv_filename)
-    if exists:
-        showVerbose(
-            config,
-            "%sScan '%s' : %shz-%shz already exists%s" % (
-                tcolor.GREEN,
-                scanlevel['name'],
-                commons.float2Hz(start), commons.float2Hz(start + scanlevel['windows']),
-                tcolor.DEFAULT
-            )
-        )
-        return
-    else:
-        running_filename = "%s.running" % filename
-        exists = os.path.isfile(running_filename)
+        # Ignore call rtl_power if file already exist
+        csv_filename = "%s.csv" % filename
+        exists = os.path.isfile(csv_filename)
         if exists:
-            print "%sScan '%s' : delete old running file %shz-%shz" % (
+            showVerbose(
+                config,
+                "%sScan '%s' : %shz-%shz already exists%s" % (
+                    tcolor.GREEN,
+                    scanlevel['name'],
+                    commons.float2Hz(start), commons.float2Hz(start + scanlevel['windows']),
+                    tcolor.DEFAULT
+                )
+            )
+            return
+        else:
+            running_filename = "%s.running" % filename
+            exists = os.path.isfile(running_filename)
+            if exists:
+                print "%sScan '%s' : delete old running file %shz-%shz" % (
+                    tcolor.DEFAULT,
+                    scanlevel['name'],
+                    commons.float2Hz(start), commons.float2Hz(start + scanlevel['windows']),
+                )
+                os.remove(running_filename)
+
+            print "%sScan '%s' : %shz-%shz with %s gain / Begin: %s / Finish in: ~%s" % (
                 tcolor.DEFAULT,
                 scanlevel['name'],
                 commons.float2Hz(start), commons.float2Hz(start + scanlevel['windows']),
+                gain,
+                time.strftime("%H:%M:%S", time.localtime()),
+                commons.float2Sec(scanlevel['quitafter']),
             )
-            os.remove(running_filename)
 
-        print "%sScan '%s' : %shz-%shz Begin: %s / Finish in: ~%s" % (
-            tcolor.DEFAULT,
-            scanlevel['name'],
-            commons.float2Hz(start), commons.float2Hz(start + scanlevel['windows']),
-            time.strftime("%H:%M:%S", time.localtime()),
-            commons.float2Sec(scanlevel['quitafter']),
-        )
+            cmd = "rtl_power -p %s -g %s -f %s:%s:%s -i %s -e %s %s" % (
+                config['global']['ppm'],
+                gain,
+                start,
+                start + scanlevel['windows'],
+                scanlevel['binsize'],
+                scanlevel['interval'],
+                scanlevel['quitafter'],
+                running_filename
+            )
 
-        cmd = "rtl_power -p %s -g %s -f %s:%s:%s -i %s -e %s %s" % (
-            config['global']['ppm'],
-            config['global']['gain'],
-            start,
-            start + scanlevel['windows'],
-            scanlevel['binsize'],
-            scanlevel['interval'],
-            scanlevel['quitafter'],
-            running_filename
-        )
+            # Call rtl_power shell command
+            executeShell(cmd)
 
-        # Call rtl_power shell command
-        executeShell(cmd)
-
-        # Rename file
-        os.rename(running_filename, csv_filename)
+            # Rename file
+            os.rename(running_filename, csv_filename)
 
 def executeSumarizeSignals(config, scanlevel, start):
-    filename = calcFilename(scanlevel, start)
+    for gain in scanlevel['gains']:
+        filename = calcFilename(scanlevel, start, gain)
 
-    # ignore if rtl_power file not exists
-    csv_filename = "%s.csv" % filename
-    exists = os.path.isfile(csv_filename)
-    if not exists:
-        showVerbose(
-            config,
-            "%s %s not exist%s" % (
-                tcolor.RED,
-                csv_filename,
-                tcolor.DEFAULT,
+        # ignore if rtl_power file not exists
+        csv_filename = "%s.csv" % filename
+        exists = os.path.isfile(csv_filename)
+        if not exists:
+            showVerbose(
+                config,
+                "%s %s not exist%s" % (
+                    tcolor.RED,
+                    csv_filename,
+                    tcolor.DEFAULT,
+                )
             )
-        )
-        return
+            continue
 
-    # Ignore call summary if file already exist
-    summary_filename = "%s.summary" % filename
-    exists = os.path.isfile(summary_filename)
-    if exists:
-        showVerbose(
-            config,
-            "%sSummarize '%s' : %shz-%shz%s" % (
-                tcolor.GREEN,
-                scanlevel['name'], commons.float2Hz(start), commons.float2Hz(start + scanlevel['windows']),
-                tcolor.DEFAULT,
+        # Ignore call summary if file already exist
+        summary_filename = "%s.summary" % filename
+        exists = os.path.isfile(summary_filename)
+        if exists:
+            showVerbose(
+                config,
+                "%sSummarize '%s' : %shz-%shz%s for %s gain" % (
+                    tcolor.GREEN,
+                    scanlevel['name'], commons.float2Hz(start), commons.float2Hz(start + scanlevel['windows']),
+                    gain,
+                    tcolor.DEFAULT,
+                )
             )
+            continue
+
+        print "%sSummarize '%s' : %shz-%shz for %s gain" % (
+            tcolor.DEFAULT,
+            scanlevel['name'], commons.float2Hz(start), commons.float2Hz(start + scanlevel['windows']),
+            gain
         )
-        return
-
-    print "%sSummarize '%s' : %shz-%shz" % (
-        tcolor.DEFAULT,
-        scanlevel['name'], commons.float2Hz(start), commons.float2Hz(start + scanlevel['windows']),
-    )
 
 
-    datas = loadCSVFile(csv_filename)
-    result = summarizeSignal(datas)
-    saveJSON(summary_filename, result)
-
-    return result
+        sdrdatas = commons.SDRDatas(csv_filename)
+        saveJSON(summary_filename, sdrdatas.summaries)
 
 
 def executeSearchStations(config, stations, scanlevel, start):
@@ -403,7 +323,7 @@ def executeSearchStations(config, stations, scanlevel, start):
         scanlevel['name'], commons.float2Hz(start), commons.float2Hz(start + scanlevel['windows']),
     )
 
-    smooth_max = smooth(np.array(summaries['max']['signal']),10, 'flat')
+    smooth_max = commons.smooth(np.array(summaries['max']['signal']),10, 'flat')
 
     limitmin = summaries['min']['peak']['min']['mean'] - summaries['min']['peak']['min']['std']
     limitmax = summaries['max']['mean'] + summaries['max']['std']
@@ -413,219 +333,230 @@ def executeSearchStations(config, stations, scanlevel, start):
 
 
 def executeHeatmapParameters(config, scanlevel, start):
-    filename = calcFilename(scanlevel, start)
+    for gain in scanlevel['gains']:
+        filename = calcFilename(scanlevel, start, gain)
 
-    # Ignore if summary file not exists
-    summary_filename = "%s.summary" % filename
-    exists = os.path.isfile(summary_filename)
-    if not exists:
-        showVerbose(
-            config,
-            "%s %s not exist%s" % (
-                tcolor.RED,
-                summary_filename,
+        # Ignore if summary file not exists
+        summary_filename = "%s.summary" % filename
+        exists = os.path.isfile(summary_filename)
+        if not exists:
+            showVerbose(
+                config,
+                "%s %s not exist%s" % (
+                    tcolor.RED,
+                    summary_filename,
+                    tcolor.DEFAULT,
+                )
+            )
+            continue
+
+        summaries = loadJSON(summary_filename)
+        params_filename = "%s.hparam" % filename
+        exists = os.path.isfile(params_filename)
+        if exists:
+            showVerbose(
+                config,
+                "%sHeatmap Parameter '%s' : %shz-%shz%s" % (
+                tcolor.GREEN,
+                scanlevel['name'], commons.float2Hz(start), commons.float2Hz(start + scanlevel['windows']),
                 tcolor.DEFAULT,
+                )
             )
-        )
-        return
+            continue
 
-    summaries = loadJSON(summary_filename)
-    params_filename = "%s.hparam" % filename
-    exists = os.path.isfile(params_filename)
-    if exists:
-        showVerbose(
-            config,
-            "%sHeatmap Parameter '%s' : %shz-%shz%s" % (
-            tcolor.GREEN,
-            scanlevel['name'], commons.float2Hz(start), commons.float2Hz(start + scanlevel['windows']),
+        print "%sHeatmap Parameter '%s' : %shz-%shz for % gain" % (
             tcolor.DEFAULT,
-            )
+            scanlevel['name'], commons.float2Hz(start), commons.float2Hz(start + scanlevel['windows']),
+            gain,
         )
-        return
 
-    print "%sHeatmap Parameter '%s' : %shz-%shz" % (
-        tcolor.DEFAULT,
-        scanlevel['name'], commons.float2Hz(start), commons.float2Hz(start + scanlevel['windows']),
-    )
+        parameters = {}
+        parameters['reversetextorder'] = True
 
-    parameters = {}
-    parameters['reversetextorder'] = True
+        # Db
+        #parameters['db'] = {}
+        ##parameters['db']['mean'] = summaries['avg']['mean']
+        #parameters['db']['min'] = summaries['avg']['min']
+        #parameters['db']['max'] = summaries['avg']['max']
 
-    # Db
-    #parameters['db'] = {}
-    ##parameters['db']['mean'] = summaries['avg']['mean']
-    #parameters['db']['min'] = summaries['avg']['min']
-    #parameters['db']['max'] = summaries['avg']['max']
+        # Text
+        parameters['texts'] = []
+        parameters['texts'].append({'text': "Min signal: %.2f" % summaries['avg']['min']})
+        parameters['texts'].append({'text': "Max signal: %.2f" % summaries['avg']['max']})
+        parameters['texts'].append({'text': "Mean signal: %.2f" % summaries['avg']['mean']})
+        parameters['texts'].append({'text': "Std signal: %.2f" % summaries['avg']['std']})
 
-    # Text
-    parameters['texts'] = []
-    parameters['texts'].append({'text': "Min signal: %.2f" % summaries['avg']['min']})
-    parameters['texts'].append({'text': "Max signal: %.2f" % summaries['avg']['max']})
-    parameters['texts'].append({'text': "Mean signal: %.2f" % summaries['avg']['mean']})
-    parameters['texts'].append({'text': "Std signal: %.2f" % summaries['avg']['std']})
+        parameters['texts'].append({'text': ""})
+        parameters['texts'].append({'text': "avg min %.2f" % summaries['avg']['min']})
+        parameters['texts'].append({'text': "std min %.2f" % summaries['avg']['std']})
 
-    parameters['texts'].append({'text': ""})
-    parameters['texts'].append({'text': "avg min %.2f" % summaries['avg']['min']})
-    parameters['texts'].append({'text': "std min %.2f" % summaries['avg']['std']})
+        # Add sscanlevel stations name in legends
+        if 'stationsfilename' in scanlevel or 'heatmap' in config['global']:
+            parameters['legends'] = []
 
-    # Add sscanlevel stations name in legends
-    if 'stationsfilename' in scanlevel or 'heatmap' in config['global']:
-        parameters['legends'] = []
+        if 'stationsfilename' in scanlevel:
+            parameters['legends'].append(scanlevel['stationsfilename'])
 
-    if 'stationsfilename' in scanlevel:
-        parameters['legends'].append(scanlevel['stationsfilename'])
+        if 'heatmap' in config['global']:
+            # Add global stations name in legends
+            if 'heatmap' in config['global'] and "stationsfilenames" in config['global']['heatmap']:
+                for stationsfilename in config['global']['heatmap']['stationsfilenames']:
+                    parameters['legends'].append(stationsfilename)
 
-    if 'heatmap' in config['global']:
-        # Add global stations name in legends
-        if 'heatmap' in config['global'] and "stationsfilenames" in config['global']['heatmap']:
-            for stationsfilename in config['global']['heatmap']['stationsfilenames']:
-                parameters['legends'].append(stationsfilename)
-
-    saveJSON(params_filename, parameters)
-
-    return parameters
+        saveJSON(params_filename, parameters)
 
 
 def executeHeatmap(config, scanlevel, start):
-    filename = calcFilename(scanlevel, start)
+    for gain in scanlevel['gains']:
+        filename = calcFilename(scanlevel, start, gain)
 
-    csv_filename = "%s.csv" % filename
-    exists = os.path.isfile(csv_filename)
-    if not exists:
-        showVerbose(
-            config,
-            "%s %s not exist%s" % (
-                tcolor.RED,
-                csv_filename,
-                tcolor.DEFAULT,
+        csv_filename = "%s.csv" % filename
+        exists = os.path.isfile(csv_filename)
+        if not exists:
+            showVerbose(
+                config,
+                "%s %s not exist%s" % (
+                    tcolor.RED,
+                    csv_filename,
+                    tcolor.DEFAULT,
+                )
             )
-        )
-        return
+            continue
 
-    params_filename = "%s.hparam" % filename
-    exists = os.path.isfile(params_filename)
-    if not exists:
-        showVerbose(
-            config,
-            "%s %s not exist%s" % (
-                tcolor.RED,
-                params_filename,
-                tcolor.DEFAULT,
+        params_filename = "%s.hparam" % filename
+        exists = os.path.isfile(params_filename)
+        if not exists:
+            showVerbose(
+                config,
+                "%s %s not exist%s" % (
+                    tcolor.RED,
+                    params_filename,
+                    tcolor.DEFAULT,
+                )
             )
-        )
-        return
+            continue
 
-    # Check if scan exist
-    img_filename = "%s_heatmap.png" % filename
-    exists = os.path.isfile(img_filename)
-    if exists:
-        showVerbose(
-            config,
-             "%sHeatmap '%s' : %shz-%shz%s" % (
-                        tcolor.GREEN,
-                        scanlevel['name'], commons.float2Hz(start), commons.float2Hz(start + scanlevel['windows']),
-                        tcolor.DEFAULT
+        # Check if scan exist
+        img_filename = "%s_heatmap.png" % filename
+        exists = os.path.isfile(img_filename)
+        if exists:
+            showVerbose(
+                config,
+                 "%sHeatmap '%s' : %shz-%shz%s" % (
+                            tcolor.GREEN,
+                            scanlevel['name'], commons.float2Hz(start), commons.float2Hz(start + scanlevel['windows']),
+                            tcolor.DEFAULT
+                )
             )
+            continue
+
+        print "%sHeatmap '%s' : %shz-%shz for %s gain" % (
+            tcolor.DEFAULT,
+            scanlevel['name'], commons.float2Hz(start), commons.float2Hz(start + scanlevel['windows']),
+            gain,
         )
-        return
 
-    print "%sHeatmap '%s' : %shz-%shz" % (
-        tcolor.DEFAULT,
-        scanlevel['name'], commons.float2Hz(start), commons.float2Hz(start + scanlevel['windows']),
-    )
+        print "CSV: %s" % csv_filename
+        datas = commons.SDRDatas(csv_filename)
+        for line in datas.samples:
+            print len(line)
 
-    # Check calc or check if Heatmap paramters exists
-    cmd = "python heatmap.py --parameters %s %s %s" % (
-        params_filename,
-        csv_filename,
-        img_filename
-    )
-    print cmd
+        print ""
 
-    # Call heatmap.py shell command
-    executeShell(cmd, config['global']['heatmap']['dirname'])
+
+        # # Check calc or check if Heatmap paramters exists
+        # cmd = "python heatmap.py --parameters %s %s %s" % (
+        #     params_filename,
+        #     csv_filename,
+        #     img_filename
+        # )
+        # print cmd
+        #
+        # # Call heatmap.py shell command
+        # executeShell(cmd, config['global']['heatmap']['dirname'])
 
 def executeSpectre(config, scanlevel, start):
-    filename = calcFilename(scanlevel, start)
+    for gain in scanlevel['gains']:
+        filename = calcFilename(scanlevel, start, gain)
 
-    csv_filename = "%s.csv" % filename
-    exists = os.path.isfile(csv_filename)
-    if not exists:
-        showVerbose(
-            config,
-            "%s %s not exist%s" % (
-                tcolor.RED,
-                csv_filename,
-                tcolor.DEFAULT,
+        csv_filename = "%s.csv" % filename
+        exists = os.path.isfile(csv_filename)
+        if not exists:
+            showVerbose(
+                config,
+                "%s %s not exist%s" % (
+                    tcolor.RED,
+                    csv_filename,
+                    tcolor.DEFAULT,
+                )
             )
-        )
-        return
+            return
 
-    # Ignore if summary file not exists
-    summary_filename = "%s.summary" % filename
-    exists = os.path.isfile(summary_filename)
-    if not exists:
-        showVerbose(
-            config,
-            "%s %s not exist%s" % (
-                tcolor.RED,
-                summary_filename,
-                tcolor.DEFAULT,
+        # Ignore if summary file not exists
+        summary_filename = "%s.summary" % filename
+        exists = os.path.isfile(summary_filename)
+        if not exists:
+            showVerbose(
+                config,
+                "%s %s not exist%s" % (
+                    tcolor.RED,
+                    summary_filename,
+                    tcolor.DEFAULT,
+                )
             )
-        )
-        return
-    summaries = loadJSON(summary_filename)
+            return
+        summaries = loadJSON(summary_filename)
 
-    # Check if scan exist
-    img_filename = "%s_spectre.png" % filename
-    exists = os.path.isfile(img_filename)
-    if exists:
-        showVerbose(
-            config,
-            "%sSpectre '%s' : %shz-%shz%s" % (
-                tcolor.GREEN,
-                scanlevel['name'], commons.float2Hz(start), commons.float2Hz(start + scanlevel['windows']),
-                tcolor.DEFAULT
+        # Check if scan exist
+        img_filename = "%s_spectre.png" % filename
+        exists = os.path.isfile(img_filename)
+        if exists:
+            showVerbose(
+                config,
+                "%sSpectre '%s' : %shz-%shz%s" % (
+                    tcolor.GREEN,
+                    scanlevel['name'], commons.float2Hz(start), commons.float2Hz(start + scanlevel['windows']),
+                    tcolor.DEFAULT
+                )
             )
+            return
+
+        print "%sSpectre '%s' : %shz-%shz" % (
+            tcolor.DEFAULT,
+            scanlevel['name'], commons.float2Hz(start), commons.float2Hz(start + scanlevel['windows']),
         )
-        return
 
-    print "%sSpectre '%s' : %shz-%shz" % (
-        tcolor.DEFAULT,
-        scanlevel['name'], commons.float2Hz(start), commons.float2Hz(start + scanlevel['windows']),
-    )
+        plt.figure(figsize=(15,10))
+        plt.grid()
 
-    plt.figure(figsize=(15,10))
-    plt.grid()
-
-    freqs = np.linspace(summaries['freq']['start'], summaries['freq']['end'], num=summaries['samples']['nbsamplescolumn'])
+        freqs = np.linspace(summaries['freq']['start'], summaries['freq']['end'], num=summaries['samples']['nbsamplescolumn'])
 
 
 
-    limitmin = summaries['min']['peak']['min']['mean'] - summaries['min']['peak']['min']['std']
-    limitmax = summaries['max']['mean'] + summaries['max']['std']
-    limits = np.linspace(limitmin, limitmax, 5)
-    # Max
-    for limit in limits:
-        plt.axhline(limit, color='blue')
+        limitmin = summaries['min']['peak']['min']['mean'] - summaries['min']['peak']['min']['std']
+        limitmax = summaries['max']['mean'] + summaries['max']['std']
+        limits = np.linspace(limitmin, limitmax, 5)
+        # Max
+        for limit in limits:
+            plt.axhline(limit, color='blue')
 
-    smooth_max = smooth(np.array(summaries['max']['signal']),10, 'flat')
-    plt.plot(freqs, smooth_max[:len(freqs)],color='red')
+        smooth_max = commons.smooth(np.array(summaries['max']['signal']),10, 'flat')
+        plt.plot(freqs, smooth_max[:len(freqs)],color='red')
 
-    # Set X Limit
-    locs, labels = plt.xticks()
-    for idx in range(len(labels)):
-        labels[idx] = commons.float2Hz(locs[idx])
-    plt.xticks(locs, labels)
-    plt.xlabel('Freq in Hz')
+        # Set X Limit
+        locs, labels = plt.xticks()
+        for idx in range(len(labels)):
+            labels[idx] = commons.float2Hz(locs[idx])
+        plt.xticks(locs, labels)
+        plt.xlabel('Freq in Hz')
 
-    # Set Y Limit
-    # plt.ylim(summary['groundsignal'], summary['maxsignal'])
-    plt.ylabel('Power density in dB')
+        # Set Y Limit
+        # plt.ylim(summary['groundsignal'], summary['maxsignal'])
+        plt.ylabel('Power density in dB')
 
 
-    plt.savefig(img_filename)
-    plt.close()
+        plt.savefig(img_filename)
+        plt.close()
 
 
 def showInfo(config, args):
@@ -671,79 +602,6 @@ def showInfo(config, args):
     # Show global config
     if 'global' in config:
         pprint.pprint(config['global'],indent=2)
-
-
-def computeAvgSignal(summaries, summaryname, spectre):
-    summaries[summaryname] = {}
-    summaries[summaryname]['signal'] = spectre.tolist()
-
-    # AVG signal
-    summaries[summaryname]['min'] = np.min(spectre)
-    summaries[summaryname]['max'] = np.max(spectre)
-    summaries[summaryname]['mean'] = np.mean(spectre)
-    summaries[summaryname]['std'] = np.std(spectre)
-
-    # Compute Ground Noise of signal
-    lensignal = len(spectre)
-    smooth_signal = smooth(spectre,10, 'flat')
-    peakmin = signal.argrelextrema(smooth_signal[:lensignal], np.less)
-    peakmax = signal.argrelextrema(smooth_signal[:lensignal], np.greater)
-
-    peakminidx = []
-    for idx in peakmin[0]:
-        if smooth_signal[:lensignal][idx] < summaries[summaryname]['mean']:
-            peakminidx.append(idx)
-    summaries[summaryname]['peak'] = {}
-    summaries[summaryname]['peak']['min'] = {}
-    summaries[summaryname]['peak']['min']['idx'] = peakminidx
-    summaries[summaryname]['peak']['min']['mean'] = np.mean(spectre[peakminidx])
-    summaries[summaryname]['peak']['min']['std'] = np.std(spectre[peakminidx])
-
-    peakmaxidx = []
-    for idx in peakmax[0]:
-        if smooth_signal[:lensignal][idx] > summaries[summaryname]['mean']:
-            peakmaxidx.append(idx)
-    summaries[summaryname]['peak']['max'] = {}
-    summaries[summaryname]['peak']['max']['idx'] = peakmaxidx
-    summaries[summaryname]['peak']['max']['mean'] = np.mean(spectre[peakmaxidx])
-    summaries[summaryname]['peak']['max']['std'] = np.std(spectre[peakmaxidx])
-
-def summarizeSignal(datas):
-    summaries = {}
-
-    # Samples
-    summaries['samples'] = {}
-    summaries['samples']['nblines'] = datas['powersignal'].shape[0]
-    summaries['samples']['nbsamplescolumn'] = datas['powersignal'].shape[1]
-
-    # Date
-    summaries['time'] = {}
-    summaries['time']['start'] = datas['times'][0]
-    summaries['time']['end'] = datas['times'][-1]
-
-    # Frequencies
-    summaries['freq'] = {}
-    summaries['freq']['start'] = datas['freq_start']
-    summaries['freq']['end'] = datas['freq_end']
-    summaries['freq']['step'] = datas['freq_step']
-
-    # Avg signal
-    avgsignal = np.mean(datas['powersignal'], axis=0)
-    computeAvgSignal(summaries, 'avg', avgsignal)
-
-    # Min signal
-    minsignal = np.min(datas['powersignal'], axis=0)
-    computeAvgSignal(summaries, 'min', minsignal)
-
-    # Max signal
-    maxsignal = np.max(datas['powersignal'], axis=0)
-    computeAvgSignal(summaries, 'max', maxsignal)
-
-    # Delta signal
-    deltasignal = maxsignal - minsignal
-    computeAvgSignal(summaries, 'delta', deltasignal)
-
-    return summaries
 
 
 def searchStation(scanlevel, stations, summaries, samples, limitmin, limitmax):

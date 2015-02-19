@@ -37,7 +37,7 @@ else
     SAMPLERATE=$PLAYFREQ
 fi
 
-# Script parameters
+# Script parametersqu
 DATEDIR=`date '+%Y/%m/%d'`
 DATEFILENAME=`date '+%Y-%m-%d-%H:%M:%S'`
 DIRRECORD="$ROOTDIR/_unclassified_"
@@ -55,4 +55,4 @@ sleep 5
 SOXIDX=`pactl list sink-inputs short | tail -n1 | cut -f 1`
 
 #Record
-parec --monitor-stream=$SOXIDX --rate=$PLAYFREQ --channels=1 | sox -t raw -r $PLAYFREQ -es -b 16 -c 1 - $FULLNAME sinc 400-4500 silence 1 0.50 0.1% 1 2.0 0.1% : newfile : restart
+parec --monitor-stream=$SOXIDX --rate=$PLAYFREQ --channels=1 --latency-msec=5 | sox -t raw -r $PLAYFREQ -es -b 16 -c 1 - $FULLNAME sinc 400-4500 silence 1 0.50 0.1% 1 2.0 0.1% : newfile : restart

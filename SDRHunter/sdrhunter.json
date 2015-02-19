@@ -1,41 +1,181 @@
 {
     "global": {
-        "rootdir": "/home/badele/sdrhunter",
+        "rootdir": "/home/badele/docshare/projects/SDRHunter/SDRHunter/scanresult",
         "ppm": 57,
+        "gains": [25,50],
+        "verbose": false,
+        "heatmap": {
+            "dirname": "/home/badele/docshare/projects/rtl-sdr-misc/heatmap/",
+            "stationsfilenames": [
+                "/home/badele/docshare/projects/rtl-sdr-misc/heatmap/frequencies.json"
+            ]
+        },
         "scans": {
-            "nbsamples_lines": 480,
+            "nbsamples_lines": 128,
             "nbsamples_freqs": 2048,
+            "minrelativedb": 5,
+            "minscanbw": "10k",
+            "maxscanbw": "200k",
             "maxlevel_legend": 2
         }
     },
     "configs": {
         "nagoya-mpl": {
-            "location": "Montpellier",
+            "location": "Montpellier-discone",
             "antenna": "nagoya"
         }
     },
     "scans": [
         {
-            "name": "fullrange",
-            "freq_start": "24M",
-            "freq_end": "1700M",
-            "interval": "1m",
-            "nbsamples_lines": 60
+            "name": "433Mhz-1s",
+            "freq_start": "433M",
+            "freq_end": "435M",
+            "windows": "2M",
+            "interval": "1s",
+            "nbsamples_lines": 200
+
         },
         {
-            "name": "partialrange",
+            "name": "433Mhz-5s",
+            "freq_start": "433M",
+            "freq_end": "435M",
+            "windows": "2M",
+            "interval": "5s",
+            "nbsamples_lines": 200
+
+        },
+        {
+            "name": "433Mhz-15s",
+            "freq_start": "433M",
+            "freq_end": "435M",
+            "windows": "2M",
+            "interval": "15s",
+            "nbsamples_lines": 200
+
+        },
+        {
+            "name": "433Mhz-30s",
+            "freq_start": "433M",
+            "freq_end": "435M",
+            "windows": "2M",
+            "interval": "30s",
+            "nbsamples_lines": 200
+
+        },
+        {
+            "name": "433Mhz-60s",
+            "freq_start": "433M",
+            "freq_end": "435M",
+            "windows": "2M",
+            "interval": "60s",
+            "nbsamples_lines": 200
+
+        },
+        {
+            "name": "433Mhz-300s",
+            "freq_start": "433M",
+            "freq_end": "435M",
+            "windows": "2M",
+            "interval": "300s",
+            "nbsamples_lines": 200
+        },
+        {
+            "name": "pompier",
+            "freq_start": "82M",
+            "freq_end": "88M",
+            "interval": "10s",
+            "nbsamples_lines": 5,
+            "nbsamples_freqs": 16
+        },
+        {
+            "name": "aeronautic",
+            "freq_start": "118M",
+            "freq_end": "137M",
+            "interval": "10s",
+            "nbsamples_freqs": 2048
+        },
+        {
+            "name": "test_FM",
+            "freq_start": "88M",
+            "freq_end": "108M",
+            "interval": "10s",
+            "nbsamples_lines": 2048
+
+        },
+        {
+            "name": "partialrange_100M",
             "freq_start": "24M",
             "freq_end": "1700M",
             "windows": "100M",
-            "nbsamples_lines": 200,
             "interval": "10s"
         },
         {
-            "name": "scan",
+            "name": "partialrange_2M_fast",
+            "freq_start": "88M",
+            "freq_end": "108M",
+            "windows": "2M",
+            "interval": "10s",
+            "nbsamples_lines": 2048
+
+        },
+        {
+            "name": "partialrange_2M_veryslow",
+            "freq_start": "172M",
+            "freq_end": "174M",
+            "windows": "2M",
+            "interval": "60s",
+            "nbsamples_lines": 1440
+        },
+        {
+            "name": "partialrange_2M_slow",
+            "freq_start": "172M",
+            "freq_end": "174M",
+            "windows": "2M",
+            "interval": "10s",
+            "nbsamples_lines": 342
+
+        },
+        {
+            "name": "partialrange_10M",
+            "freq_start": "80M",
+            "freq_end": "100M",
+            "windows": "10M",
+            "interval": "10s",
+            "nbsamples_lines": 2048
+
+        },
+        {
+            "name": "aeronautic",
+            "freq_start": "107M",
+            "freq_end": "137M",
+            "windows": "30M",
+            "interval": "10s",
+            "nbsamples_lines": 1024
+
+        },
+        {
+            "name": "fastscan",
             "freq_start": "24M",
             "freq_end": "1680M",
-            "nbsamples_lines": 60,
             "windows": "1M",
+            "interval": "1s",
+            "nbsamples_lines": 10,
+            "splitwindows": true
+
+        },
+        {
+            "name": "fullrange",
+            "freq_start": "24M",
+            "freq_end": "1700M",
+            "interval": "2m"
+        },
+        {
+            "name": "zoomedscan",
+            "freq_start": "24M",
+            "freq_end": "1700M",
+            "windows": "2M",
+            "stationsfilename": "/home/badele/docshare/projects/SDRHunter/SDRHunter/scanresult/Montpellier/scanresult.json",
+            "scanfromstations": true,
             "interval": "1s"
         }
     ]
