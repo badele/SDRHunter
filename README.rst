@@ -32,3 +32,19 @@ To install the latest development version from `GitHub <https://github.com/badel
 .. code-block:: console
 
     $ pip install git+git://github.com/badele/SDRHunter.git
+
+Using
+=====
+
+Exemple for using the scanner :
+
+.. code-block:: console
+
+    $ ./SDRHunter.py -l Montpellier -a scan
+    $ ./SDRHunter.py -l Montpellier -a gensummaries
+    $ ./SDRHunter.py -l Montpellier -a genheatmapparameters
+    $ ./HeapAnalyzer.py
+
+
+
+
