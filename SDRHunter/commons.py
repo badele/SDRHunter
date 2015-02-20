@@ -8,19 +8,11 @@ __license__ = 'GPL'
 __version__ = '0.0.1'
 
 import os
-import sys
 import json
-import shlex
-import time
-import pprint
-import argparse
-import subprocess
 from collections import OrderedDict
-import matplotlib.pyplot as plt
 
 import numpy as np
 import scipy.signal as signal
-from tabulate import tabulate
 
 # Unit conversion
 HzUnities = {'M': 1e6, 'k': 1e3}
