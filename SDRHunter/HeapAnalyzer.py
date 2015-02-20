@@ -973,10 +973,7 @@ if __name__ == '__main__':
     app = QtGui.QApplication(sys.argv)
 
     mainWindow = MainWindow()
-    mainWindow.loadDatas("/home/badele/docshare/projects/SDRHunter/SDRHunter/scanresult/Montpellier/433Mhz-1s/0433.000MHz-0435.000MHz-0050.00dB-978.0Hz-1.00s-3.33m.csv")
-    mainWindow.updateScene()
     mainWindow.setGeometry(100, 100, 800, 500)
     mainWindow.show()
-    #mainWindow.setStyleSheet("background-color: black;")
 
     sys.exit(app.exec_())
