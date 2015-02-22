@@ -1,5 +1,6 @@
 include README.rst
 include LICENSE
 include tests.py
+include SDRHunter/sdrhunter.json
 include SDRHunter/LCDM2N__.TTF
 include SDRHunter/Vera.ttf
