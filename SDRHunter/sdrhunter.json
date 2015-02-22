@@ -1,6 +1,6 @@
 {
     "global": {
-        "rootdir": "/home/badele/sdrhunter_scanresult",
+        "rootdir": "",
         "ppm": 57,
         "gains": [25,50],
         "verbose": false,

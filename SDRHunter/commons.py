@@ -18,6 +18,15 @@ import scipy.signal as signal
 HzUnities = {'M': 1e6, 'k': 1e3}
 secUnities = {'s': 1, 'm': 60, 'h': 3600}
 
+def getJSONConfigFilename():
+    if os.name == "nt":
+        jsonfilename = "sdrhunter.json"
+    else:
+        jsonfilename = ".sdrhunter.json"
+
+    return os.path.join(os.path.expanduser("~"), jsonfilename)
+
+
 def loadJSON(filename):
     exists = os.path.isfile(filename)
     if exists:
@@ -107,6 +116,91 @@ def smooth(x,window_len=11,window='hanning'):
     y=np.convolve(w/w.sum(),s,mode='valid')
     return y
 
+def loadConfigFile(filename, location=""):
+    config = loadJSON(filename)
+
+    if config is None:
+        raise Exception("No JSON SDRHunter configuration file find")
+
+
+    # Check global section
+    if 'rootdir' not in config['global'] or config['global']['rootdir'] == '':
+        config['global']['rootdir'] = os.path.join(os.path.expanduser("~"), 'SDRHunter')
+
+    if 'ppm' not in config['global']:
+        config['global']['ppm'] = 0
+    if 'gains' not in config['global']:
+        config['global']['gains'] = [0, 25, 50]
+    if 'verbose' not in config['global']:
+        config['global']['verbose'] = True
+
+    # Check in global scan section
+    if 'scans' not in config['global']:
+        config['global']['scans'] = {}
+    if 'splitwindows' not in config['global']['scans']:
+        config['global']['scans']['splitwindows'] = False
+    if 'scanfromstations' not in config['global']['scans']:
+        config['global']['scans']['scanfromstations'] = False
+
+    # Replace Global variables
+
+
+    if config:
+        # Check global field if not exist in scanlevel
+        if 'scans' in config['global']:
+            for field in config['global']['scans']:
+                for scanlevel in config['scans']:
+                    if field not in scanlevel:
+                        scanlevel[field] = config['global']['scans'][field]
+
+        # Check required scan param
+        for scanlevel in config['scans']:
+            required = ['name', 'freq_start', 'freq_end', 'interval', 'splitwindows']
+            for require in required:
+                if require not in scanlevel:
+                    raise Exception("key '%s' required in %s" % (require, scanlevel))
+
+
+        # set windows var if not exist config exist
+        for scanlevel in config['scans']:
+            if 'windows' not in scanlevel:
+                freqstart = hz2Float(scanlevel['freq_start'])
+                freqend = hz2Float(scanlevel['freq_end'])
+                scanlevel['windows'] = freqend - freqstart
+
+
+        # Convert value to float
+        for scanlevel in config['scans']:
+            # Set vars
+            scanlevel['freq_start'] = hz2Float(scanlevel['freq_start'])
+            scanlevel['freq_end'] = hz2Float(scanlevel['freq_end'])
+            scanlevel['delta'] = scanlevel['freq_end'] - scanlevel['freq_start']
+            scanlevel['windows'] = hz2Float(scanlevel['windows'])
+            scanlevel['interval'] = sec2Float(scanlevel['interval'])
+            scanlevel['quitafter'] = sec2Float(scanlevel['interval']) * scanlevel['nbsamples_lines']
+            scanlevel['scandir'] = os.path.join(config['global']['rootdir'], location, scanlevel['name'])
+            scanlevel['gains'] = config['global']['gains']
+            scanlevel['binsize'] = np.ceil(scanlevel['windows'] / (scanlevel['nbsamples_freqs'] - 1))
+
+            # Check multiple windows
+            if (scanlevel['delta'] % scanlevel['windows']) != 0:
+                #step = int((scanlevel['delta'] / (scanlevel['windows'] - (commons.hz2Float(scanlevel['windows']) / 2))))
+                scanlevel['freq_end'] = scanlevel['freq_end'] + (scanlevel['windows'] - (scanlevel['delta'] % scanlevel['windows']))
+                scanlevel['delta'] = scanlevel['freq_end'] - scanlevel['freq_start']
+
+            if scanlevel['splitwindows']:
+                scanlevel['nbstep'] = scanlevel['delta'] / (scanlevel['windows'] - (hz2Float(scanlevel['windows']) / 2))
+            else:
+                scanlevel['nbstep'] = scanlevel['delta'] / scanlevel['windows']
+
+            # Check if width if puissance of ^2
+            if int(np.log2(scanlevel['nbsamples_freqs'])) != np.log2(scanlevel['nbsamples_freqs']):
+                raise Exception("Please chose a dimension ^2 for %S" % scanlevel)
+
+        return config
+
+    return None
+
 
 class SDRDatas(object):
     def __init__(self, filename):
@@ -168,6 +262,7 @@ class SDRDatas(object):
         self.samples = self.samples.reshape((nblines,nbstep))
 
         return {'freq_start': self.freq_start, 'freq_end': self.freq_end, 'freq_step': globalfreq_step, 'times': self.times, 'samples': self.samples}
+
 
     def summarizeSignal(self):
         self.summaries = {}

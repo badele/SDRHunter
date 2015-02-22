@@ -77,81 +77,6 @@ def loadStations(filename):
 
     return stations
 
-def loadConfigFile(args):
-    config = loadJSON(args.filename)
-
-    # Check global section
-    if 'ppm' not in config['global']:
-        config['global']['ppm'] = 0
-    if 'gains' not in config['global']:
-        config['global']['gains'] = [0, 25, 50]
-    if 'verbose' not in config['global']:
-        config['global']['verbose'] = True
-
-    # Check in global scan section
-    if 'scans' not in config['global']:
-        config['global']['scans'] = {}
-    if 'splitwindows' not in config['global']['scans']:
-        config['global']['scans']['splitwindows'] = False
-    if 'scanfromstations' not in config['global']['scans']:
-        config['global']['scans']['scanfromstations'] = False
-
-
-    if config:
-        # Check global field if not exist in scanlevel
-        if 'scans' in config['global']:
-            for field in config['global']['scans']:
-                for scanlevel in config['scans']:
-                    if field not in scanlevel:
-                        scanlevel[field] = config['global']['scans'][field]
-
-        # Check required scan param
-        for scanlevel in config['scans']:
-            required = ['name', 'freq_start', 'freq_end', 'interval', 'splitwindows']
-            for require in required:
-                if require not in scanlevel:
-                    raise Exception("key '%s' required in %s" % (require, scanlevel))
-
-
-        # set windows var if not exist config exist
-        for scanlevel in config['scans']:
-            if 'windows' not in scanlevel:
-                freqstart = commons.hz2Float(scanlevel['freq_start'])
-                freqend = commons.hz2Float(scanlevel['freq_end'])
-                scanlevel['windows'] = freqend - freqstart
-
-
-        # Convert value to float
-        for scanlevel in config['scans']:
-            # Set vars
-            scanlevel['freq_start'] = commons.hz2Float(scanlevel['freq_start'])
-            scanlevel['freq_end'] = commons.hz2Float(scanlevel['freq_end'])
-            scanlevel['delta'] = scanlevel['freq_end'] - scanlevel['freq_start']
-            scanlevel['windows'] = commons.hz2Float(scanlevel['windows'])
-            scanlevel['interval'] = commons.sec2Float(scanlevel['interval'])
-            scanlevel['quitafter'] = commons.sec2Float(scanlevel['interval']) * scanlevel['nbsamples_lines']
-            scanlevel['scandir'] = "%s/%s/%s" % (config['global']['rootdir'], args.location, scanlevel['name'])
-            scanlevel['gains'] = config['global']['gains']
-            scanlevel['binsize'] = np.ceil(scanlevel['windows'] / (scanlevel['nbsamples_freqs'] - 1))
-
-            # Check multiple windows
-            if (scanlevel['delta'] % scanlevel['windows']) != 0:
-                #step = int((scanlevel['delta'] / (scanlevel['windows'] - (commons.hz2Float(scanlevel['windows']) / 2))))
-                scanlevel['freq_end'] = scanlevel['freq_end'] + (scanlevel['windows'] - (scanlevel['delta'] % scanlevel['windows']))
-                scanlevel['delta'] = scanlevel['freq_end'] - scanlevel['freq_start']
-
-            if scanlevel['splitwindows']:
-                scanlevel['nbstep'] = scanlevel['delta'] / (scanlevel['windows'] - (commons.hz2Float(scanlevel['windows']) / 2))
-            else:
-                scanlevel['nbstep'] = scanlevel['delta'] / scanlevel['windows']
-
-            # Check if width if puissance of ^2
-            if int(np.log2(scanlevel['nbsamples_freqs'])) != np.log2(scanlevel['nbsamples_freqs']):
-                raise Exception("Please chose a dimension ^2 for %S" % scanlevel)
-
-        return config
-
-    return None
 
 
 def calcFilename(scanlevel, start, gain):
@@ -854,7 +779,7 @@ def main():
     args = parse_arguments(sys.argv[1:])  # pragma: no cover
 
     # Load JSON config
-    config = loadConfigFile(args)
+    config = commons.loadConfigFile(commons.getJSONConfigFilename())
     if not config:
         raise Exception("No infos found in %s" % args.filename)
 

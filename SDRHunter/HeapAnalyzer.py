@@ -448,6 +448,7 @@ class MainWindow(QtGui.QMainWindow):
         self.bwfreq = 0
         self.filefreqs = ''
         self.jsonstations = []
+        self.config = []
 
         self.createActions()
         self.createMenus()
@@ -479,7 +480,7 @@ class MainWindow(QtGui.QMainWindow):
 
 
     def selectHeatmapFile(self):
-        fullname, _ = QtGui.QFileDialog.getOpenFileName(self, "Open File",QtCore.QDir.currentPath())
+        fullname, _ = QtGui.QFileDialog.getOpenFileName(self, "Open File",self.config['global']['rootdir'])
         if fullname != '':
             self.loadDatas(fullname)
             self.updateScene()
@@ -976,6 +977,7 @@ class MainWindow(QtGui.QMainWindow):
 def main():
     app = QtGui.QApplication(sys.argv)
     mainWindow = MainWindow()
+    mainWindow.config = commons.loadConfigFile(commons.getJSONConfigFilename())
     mainWindow.setGeometry(100, 100, 800, 500)
     mainWindow.show()
     sys.exit(app.exec_())
