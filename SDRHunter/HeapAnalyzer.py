@@ -765,7 +765,6 @@ class MainWindow(QtGui.QMainWindow):
         # Load Font
         dirname = os.path.dirname(os.path.realpath(__file__))
         fontfilename = os.path.join(dirname, "LCDM2N__.TTF")
-        print "#### %s" % fontfilename
         fontid = QtGui.QFontDatabase.addApplicationFont(fontfilename)
         font = QtGui.QFont(QtGui.QFontDatabase.applicationFontFamilies(fontid)[0], 16)
         font.setBold(True)
