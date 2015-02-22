@@ -67,6 +67,7 @@ setup(
     entry_points={
         'console_scripts': [
             "SDRHunter = SDRHunter.SDRHunter:main",
+            "HeapAnalyzer = SDRHunter.HeapAnalyzer:main",
         ],
     },
 

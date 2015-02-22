@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import os
+import sys
 import math
 import time
 
@@ -966,14 +967,13 @@ class MainWindow(QtGui.QMainWindow):
         self.view.update()
 
 
-if __name__ == '__main__':
-
-    import sys
-
+def main():
     app = QtGui.QApplication(sys.argv)
-
     mainWindow = MainWindow()
     mainWindow.setGeometry(100, 100, 800, 500)
     mainWindow.show()
-
     sys.exit(app.exec_())
+
+if __name__ == '__main__':
+    mainWindow = None
+    main()

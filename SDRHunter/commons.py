@@ -12,6 +12,7 @@ import json
 from collections import OrderedDict
 
 import numpy as np
+import scipy.signal as signal
 
 # Unit conversion
 HzUnities = {'M': 1e6, 'k': 1e3}
