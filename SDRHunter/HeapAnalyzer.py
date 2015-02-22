@@ -225,7 +225,9 @@ class RulerItem(QtGui.QGraphicsItem):
         self.supersmallheight = 2
 
         # Load Font
-        fontid = QtGui.QFontDatabase.addApplicationFont("Vera.ttf");
+        dirname = os.path.dirname(os.path.realpath(__file__))
+        fontfilename = os.path.join(dirname, "Vera.ttf")
+        fontid = QtGui.QFontDatabase.addApplicationFont(fontfilename);
         self.font = QtGui.QFont(QtGui.QFontDatabase.applicationFontFamilies(fontid)[0], 10)
 
         QtGui.QGraphicsItem.__init__(self)
@@ -276,7 +278,9 @@ class LegendItem(QtGui.QGraphicsItem):
         self.smallheight = 3
 
         # Load Font
-        fontid = QtGui.QFontDatabase.addApplicationFont("Vera.ttf");
+        dirname = os.path.dirname(os.path.realpath(__file__))
+        fontfilename = os.path.join(dirname, "Vera.ttf")
+        fontid = QtGui.QFontDatabase.addApplicationFont(fontfilename);
         self.fontsize = 10
         self.font = QtGui.QFont(QtGui.QFontDatabase.applicationFontFamilies(fontid)[0], self.fontsize)
         fm = QtGui.QFontMetrics(self.font)
@@ -478,7 +482,7 @@ class MainWindow(QtGui.QMainWindow):
         fullname, _ = QtGui.QFileDialog.getOpenFileName(self, "Open File",QtCore.QDir.currentPath())
         if fullname != '':
             self.loadDatas(fullname)
-            mainWindow.updateScene()
+            self.updateScene()
 
 
 
@@ -759,7 +763,10 @@ class MainWindow(QtGui.QMainWindow):
         font.setBold(True)
 
         # Load Font
-        fontid = QtGui.QFontDatabase.addApplicationFont("LCDM2N__.TTF");
+        dirname = os.path.dirname(os.path.realpath(__file__))
+        fontfilename = os.path.join(dirname, "LCDM2N__.TTF")
+        print "#### %s" % fontfilename
+        fontid = QtGui.QFontDatabase.addApplicationFont(fontfilename)
         font = QtGui.QFont(QtGui.QFontDatabase.applicationFontFamilies(fontid)[0], 16)
         font.setBold(True)
 
@@ -948,22 +955,22 @@ class MainWindow(QtGui.QMainWindow):
 
     def updateScene(self):
         # Reset scene
-        mainWindow.scene.setFreqRange(mainWindow.csv.summaries['freq']['start'], mainWindow.csv.summaries['freq']['end'], mainWindow.csv.summaries['freq']['step'])
+        self.scene.setFreqRange(self.csv.summaries['freq']['start'], self.csv.summaries['freq']['end'], self.csv.summaries['freq']['step'])
 
         # Generate Heatmap image
-        pixmap = mainWindow.scene.generateHeatmap(mainWindow.csv)
-        mainWindow.scene.heatmap.setPixmap(pixmap)
+        pixmap = self.scene.generateHeatmap(self.csv)
+        self.scene.heatmap.setPixmap(pixmap)
 
         # Update the legend freqs
         self.scene.legend.updateLegendSize(self.jsonstations)
 
         # Set items positions
-        mainWindow.scene.heatmap.setPos(QtCore.QPointF(0, mainWindow.scene.ruler.height()))
-        mainWindow.scene.legend.setPos(QtCore.QPointF(0, mainWindow.scene.ruler.height() + mainWindow.scene.heatmap.pixmap().height()))
+        self.scene.heatmap.setPos(QtCore.QPointF(0, self.scene.ruler.height()))
+        self.scene.legend.setPos(QtCore.QPointF(0, self.scene.ruler.height() + self.scene.heatmap.pixmap().height()))
 
         # Compute the scene height
-        totalheight = mainWindow.scene.ruler.height() + pixmap.height() + mainWindow.scene.legend.height()
-        mainWindow.scene.setSceneRect(QtCore.QRectF(0, 0, pixmap.width(), totalheight))
+        totalheight = self.scene.ruler.height() + pixmap.height() + self.scene.legend.height()
+        self.scene.setSceneRect(QtCore.QRectF(0, 0, pixmap.width(), totalheight))
         self.view.update()
 
 
@@ -975,5 +982,4 @@ def main():
     sys.exit(app.exec_())
 
 if __name__ == '__main__':
-    mainWindow = None
     main()
