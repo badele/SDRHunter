@@ -12,23 +12,26 @@ import shlex
 import urllib2
 import zipfile
 import subprocess
+import shutil
 
 DOWNLOADDIR = "c:\SDRHunter\Download"
 INSTALLDIR = "c:\SDRHunter"
 
 def main():
-    #downloadFile('https://www.python.org/ftp/python/2.7.9/python-2.7.9.msi','python-2.7.9.msi')
     # Download files
     downloadFile('http://sourceforge.net/projects/numpy/files/NumPy/1.9.1/numpy-1.9.1-win32-superpack-python2.7.exe/download','numpy-1.9.1-win32-superpack-python2.7.exe')
     downloadFile('http://sourceforge.net/projects/scipy/files/scipy/0.15.1/scipy-0.15.1-win32-superpack-python2.7.exe/download','scipy-0.15.1-win32-superpack-python2.7.exe')
     downloadFile('https://github.com/badele/SDRHunter/archive/master.zip','master.zip')
     downloadFile('http://sdr.osmocom.org/trac/raw-attachment/wiki/rtl-sdr/RelWithDebInfo.zip','RelWithDebInfo.zip')
+    downloadFile('http://sdrsharp.com/downloads/sdr-nightly.zip', 'sdr-nightly.zip')
 
     # Install the packages
     executeShell('"%s\%s" /s' % (DOWNLOADDIR, 'numpy-1.9.1-win32-superpack-python2.7.exe'))
     executeShell('"%s\%s" /s' % (DOWNLOADDIR, 'scipy-0.15.1-win32-superpack-python2.7.exe'))
     unzipFiles('master.zip', INSTALLDIR)
     unzipFiles('RelWithDebInfo.zip', INSTALLDIR)
+    unzipFiles('sdr-nightly.zip', "%s\\sdr-nightly" % INSTALLDIR)
+    shutil.copyfile("C:\\SDRHunter\\sdr-nightly\\msvcr100.dll", "C:\\SDRHunter\\rtl-sdr-release\\x32\\msvcr100.dll")
 
 
 def downloadFile(url, filename):

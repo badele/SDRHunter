@@ -45,7 +45,7 @@ Windows Installation
     cd C:\SDRHunter\SDRHunter-master
     python setup.py install
 
- - Modify path in the <PYTHON DIR INSTALL>\LIB\site-packages\SDRHUNTER-x.x.x-py2.7.egg\sdrhunter.json file
+ - copy and edit <PYTHON DIR INSTALL>\LIB\site-packages\SDRHUNTER-x.x.x-py2.7.egg\SDRHunter\sdrhunter.json to %UserProfile%
 
 Using
 =====

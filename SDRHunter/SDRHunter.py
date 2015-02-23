@@ -148,7 +148,12 @@ def executeRTLPower(config, scanlevel, start):
                 commons.float2Sec(scanlevel['quitafter']),
             )
 
-            cmd = "rtl_power -p %s -g %s -f %s:%s:%s -i %s -e %s %s" % (
+            rtl_power_cmd = "rtl_power"
+            if os.name == "nt":
+                rtl_power_cmd = "C:\\SDRHunter\\rtl-sdr-release\\x32\\rtl_power.exe"
+
+            cmd = "%s -p %s -g %s -f %s:%s:%s -i %s -e %s %s" % (
+                rtl_power_cmd,
                 config['global']['ppm'],
                 gain,
                 start,

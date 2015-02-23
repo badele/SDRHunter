@@ -122,7 +122,6 @@ def loadConfigFile(filename, location=""):
     if config is None:
         raise Exception("No JSON SDRHunter configuration file find")
 
-
     # Check global section
     if 'rootdir' not in config['global'] or config['global']['rootdir'] == '':
         config['global']['rootdir'] = os.path.join(os.path.expanduser("~"), 'SDRHunter')
