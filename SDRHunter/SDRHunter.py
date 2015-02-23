@@ -80,17 +80,17 @@ def loadStations(filename):
 
 
 def calcFilename(scanlevel, start, gain):
-    filename = "%s/%sHz-%sHz-%07.2fdB-%sHz-%s-%s" % (
-        scanlevel['scandir'],
-        commons.float2Hz(start, 3, True),
-        commons.float2Hz(start + scanlevel['windows'], 3, True),
-        gain,
-        commons.float2Hz(scanlevel['binsize'], 3, True),
-        commons.float2Sec(scanlevel['interval']),
-        commons.float2Sec(scanlevel['quitafter'])
+    filename = "%sHz-%sHz-%07.2fdB-%sHz-%s-%s" % (
+            commons.float2Hz(start, 3, True),
+            commons.float2Hz(start + scanlevel['windows'], 3, True),
+            gain,
+            commons.float2Hz(scanlevel['binsize'], 3, True),
+            commons.float2Sec(scanlevel['interval']),
+            commons.float2Sec(scanlevel['quitafter'])
     )
 
-    return filename
+    fullname = os.path.join(scanlevel['scandir'], filename)
+    return fullname
 
 
 def executeShell(cmd, directory=None):
@@ -108,6 +108,7 @@ def executeShell(cmd, directory=None):
 def executeRTLPower(config, scanlevel, start):
     # Create directory if not exists
     if not os.path.isdir(scanlevel['scandir']):
+        print "executeRTLPower SCANDIR: %s" % scanlevel['scandir']
         os.makedirs(scanlevel['scandir'])
 
     for gain in scanlevel['gains']:
@@ -151,7 +152,7 @@ def executeRTLPower(config, scanlevel, start):
             if os.name == "nt":
                 cmddir = "C:\\SDRHunter\\rtl-sdr-release\\x32"
 
-            cmd = "rtl_power -p %s -g %s -f %s:%s:%s -i %s -e %s %s" % (
+            cmd = "rtl_power -p %s -g %s -f %s:%s:%s -i %s -e %s \"%s\"" % (
                 config['global']['ppm'],
                 gain,
                 start,
@@ -652,7 +653,7 @@ def generateSummaries(config, args):
 def searchStations(config, args):
     if 'scans' in config:
         for scanlevel in config['scans']:
-            stations_filename = "%s/%s/scanresult.json" % (config['global']['rootdir'], args.location)
+            stations_filename = os.path.join(config['global']['rootdir'], args.location, "scanresult.json")
             stations = loadStations(stations_filename)
             range = np.linspace(scanlevel['freq_start'],scanlevel['freq_end'], num=scanlevel['nbstep'], endpoint=False)
             for left_freq in range:
@@ -782,7 +783,7 @@ def main():
     args = parse_arguments(sys.argv[1:])  # pragma: no cover
 
     # Load JSON config
-    config = commons.loadConfigFile(commons.getJSONConfigFilename())
+    config = commons.loadConfigFile(commons.getJSONConfigFilename(), args.location)
     if not config:
         raise Exception("No infos found in %s" % args.filename)
 
