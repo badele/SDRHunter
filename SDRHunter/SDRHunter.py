@@ -94,8 +94,7 @@ def calcFilename(scanlevel, start, gain):
 
 
 def executeShell(cmd, directory=None):
-    cmdargs = shlex.split(cmd)
-    p = subprocess.Popen(cmdargs, cwd=directory, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    p = subprocess.Popen(cmd, shell=True, cwd=directory, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     output, errors = p.communicate()
     if p.returncode:
         print 'Failed running %s' % cmd
@@ -148,12 +147,11 @@ def executeRTLPower(config, scanlevel, start):
                 commons.float2Sec(scanlevel['quitafter']),
             )
 
-            rtl_power_cmd = "rtl_power"
+            cmddir = None
             if os.name == "nt":
-                rtl_power_cmd = "C:\\SDRHunter\\rtl-sdr-release\\x32\\rtl_power.exe"
+                cmddir = "C:\\SDRHunter\\rtl-sdr-release\\x32"
 
-            cmd = "%s -p %s -g %s -f %s:%s:%s -i %s -e %s %s" % (
-                rtl_power_cmd,
+            cmd = "rtl_power -p %s -g %s -f %s:%s:%s -i %s -e %s %s" % (
                 config['global']['ppm'],
                 gain,
                 start,
@@ -165,7 +163,7 @@ def executeRTLPower(config, scanlevel, start):
             )
 
             # Call rtl_power shell command
-            executeShell(cmd)
+            executeShell(cmd, cmddir)
 
             # Rename file
             os.rename(running_filename, csv_filename)

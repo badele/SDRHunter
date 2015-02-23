@@ -11,6 +11,7 @@ import os
 import shlex
 import urllib2
 import zipfile
+import platform
 import subprocess
 import shutil
 
@@ -23,15 +24,20 @@ def main():
     downloadFile('http://sourceforge.net/projects/scipy/files/scipy/0.15.1/scipy-0.15.1-win32-superpack-python2.7.exe/download','scipy-0.15.1-win32-superpack-python2.7.exe')
     downloadFile('https://github.com/badele/SDRHunter/archive/master.zip','master.zip')
     downloadFile('http://sdr.osmocom.org/trac/raw-attachment/wiki/rtl-sdr/RelWithDebInfo.zip','RelWithDebInfo.zip')
-    downloadFile('http://sdrsharp.com/downloads/sdr-nightly.zip', 'sdr-nightly.zip')
+    downloadFile('http://sdrsharp.com/downloads/sdr-nightly-rtlsdr.zip', 'sdr-nightly-rtlsdr.zip')
+    if platform.release() == "XP":
+        downloadFile('http://zadig.akeo.ie/downloads/zadig_xp.exe', 'zadig.exe')
+    else:
+        downloadFile('http://zadig.akeo.ie/downloads/zadig.exe', 'zadig.exe')
 
     # Install the packages
     executeShell('"%s\%s" /s' % (DOWNLOADDIR, 'numpy-1.9.1-win32-superpack-python2.7.exe'))
     executeShell('"%s\%s" /s' % (DOWNLOADDIR, 'scipy-0.15.1-win32-superpack-python2.7.exe'))
+    executeShell('"%s\%s" /s' % (DOWNLOADDIR, 'zadig.exe'))
     unzipFiles('master.zip', INSTALLDIR)
     unzipFiles('RelWithDebInfo.zip', INSTALLDIR)
-    unzipFiles('sdr-nightly.zip', "%s\\sdr-nightly" % INSTALLDIR)
-    shutil.copyfile("C:\\SDRHunter\\sdr-nightly\\msvcr100.dll", "C:\\SDRHunter\\rtl-sdr-release\\x32\\msvcr100.dll")
+    unzipFiles('sdr-nightly-rtlsdr.zip', "%s\\sdr-nightly-rtlsdr" % INSTALLDIR)
+    shutil.copyfile("C:\\SDRHunter\\sdr-nightly-rtlsdr\\msvcr100.dll", "C:\\SDRHunter\\rtl-sdr-release\\x32\\msvcr100.dll")
 
 
 def downloadFile(url, filename):
