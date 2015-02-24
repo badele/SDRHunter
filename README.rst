@@ -38,6 +38,7 @@ Windows Installation
 ====================
  - Download and install (select add python.exe to Path in installation option) https://www.python.org/ftp/python/2.7.9/python-2.7.9.msi
  - Download https://raw.githubusercontent.com/badele/SDRHunter/master/SDRHunter/tools/installation\install_for_windows.py and extract to c:\temp\
+ - Connect your RTL USB key
 
 .. code-block:: console
     cd c:\temp\
