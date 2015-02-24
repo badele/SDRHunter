@@ -439,7 +439,6 @@ class MainWindow(QtGui.QMainWindow):
     def __init__(self):
         super(MainWindow, self).__init__()
 
-
         self.current_pos = -1
         self.selected_center_pos = -1
         self.bandwidth_pixels = -1
@@ -447,6 +446,7 @@ class MainWindow(QtGui.QMainWindow):
         self.current_centerfreq = 0
         self.bwfreq = 0
         self.filefreqs = ''
+        self.sdrdatas = None
         self.jsonstations = []
         self.config = []
 
@@ -932,12 +932,13 @@ class MainWindow(QtGui.QMainWindow):
                 basefile = filename[:posbasefile]
 
                 # Load files
-                self.csv = commons.SDRDatas(filename)
+                self.sdrdatas = commons.SDRDatas(filename)
+                self.sdrdatas.loadSummary()
                 self.hparam = commons.loadJSON("%s.hparam" % basefile)
 
                 # Load scan result
                 self.jsonstations = []
-                self.filefreqs = "%s/%s" % (os.path.abspath(os.path.join(os.path.dirname(filename), '..')), "scanresult.json")
+                self.filefreqs = os.path.join(os.path.abspath(os.path.join(os.path.dirname(filename), '..')), "scanresult.json")
                 self.jsonstations.append(self.loadStations(self.filefreqs))
 
                 if 'legends' in self.hparam:
@@ -952,13 +953,16 @@ class MainWindow(QtGui.QMainWindow):
                 self.tablefreq.sortItems(0)
                 self.tablefreq.resizeColumnsToContents()
 
+                # Set statusbar
+                self.statusBar().showMessage("[%s] => %s" % (self.sdrdatas.summaries['location']['name'], filename))
+
 
     def updateScene(self):
         # Reset scene
-        self.scene.setFreqRange(self.csv.summaries['freq']['start'], self.csv.summaries['freq']['end'], self.csv.summaries['freq']['step'])
+        self.scene.setFreqRange(self.sdrdatas.summaries['freq']['start'], self.sdrdatas.summaries['freq']['end'], self.sdrdatas.summaries['freq']['step'])
 
         # Generate Heatmap image
-        pixmap = self.scene.generateHeatmap(self.csv)
+        pixmap = self.scene.generateHeatmap(self.sdrdatas)
         self.scene.heatmap.setPixmap(pixmap)
 
         # Update the legend freqs

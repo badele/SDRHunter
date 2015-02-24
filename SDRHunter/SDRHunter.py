@@ -210,9 +210,10 @@ def executeSumarizeSignals(cmdargs, config, scanlevel, start):
 
 
         sdrdatas = commons.SDRDatas(csv_filename)
-        # Add City location
-        sdrdatas.summaries['city'] = {}
-        sdrdatas.summaries['city']['name'] = cmdargs.location
+        sdrdatas.genSummarizeSignal()
+        # Add location
+        sdrdatas.summaries['location'] = {}
+        sdrdatas.summaries['location']['name'] = cmdargs.location
         saveJSON(summary_filename, sdrdatas.summaries)
 
 

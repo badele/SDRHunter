@@ -202,9 +202,9 @@ def loadConfigFile(filename, location=""):
 
 
 class SDRDatas(object):
-    def __init__(self, filename):
-        self.csv = self.loadCSVFile(filename)
-        self.summarizeSignal()
+    def __init__(self, csvfilename):
+        self.csvfilename = csvfilename
+        self.csv = self.loadCSVFile(csvfilename)
 
     def loadCSVFile(self, filename):
 
@@ -262,8 +262,14 @@ class SDRDatas(object):
 
         return {'freq_start': self.freq_start, 'freq_end': self.freq_end, 'freq_step': globalfreq_step, 'times': self.times, 'samples': self.samples}
 
+    def loadSummary(self):
+        (filename, ext) = os.path.splitext(self.csvfilename)
+        summaryfilename = '%s%s' % (filename, '.summary')
+        self.summaries = loadJSON(summaryfilename)
+        if 'location' not in self.summaries or ('location' in self.summaries and 'name' not in self.summaries['location']):
+            self.summaries['location'] = {'name': 'UNKNOW LOCATION'}
 
-    def summarizeSignal(self):
+    def genSummarizeSignal(self):
         self.summaries = {}
 
         # Samples
