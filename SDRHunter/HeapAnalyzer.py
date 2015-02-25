@@ -100,6 +100,27 @@ class FreqDialog(QtGui.QDialog):
         self.showFiles(files)
 
 
+class ExportDialog(QtGui.QDialog):
+    def __init__(self, parent=None):
+        super(ExportDialog, self).__init__(parent)
+
+        # Edit
+        self.exportEdit = QtGui.QTextEdit()
+
+        # Button
+        #buttonBox = QtGui.QDialogButtonBox(QtGui.QDialogButtonBox.Ok | QtGui.QDialogButtonBox.Cancel)
+        #buttonBox.accepted(self.valid)
+
+        # Add edit section
+        grid = QtGui.QGridLayout()
+        grid.setSpacing(10)
+
+        grid.addWidget(self.exportEdit)
+        #grid.addWidget(buttonBox)
+
+        self.setLayout(grid)
+        self.setGeometry(100, 100, 640, 640)
+        self.setWindowTitle('Review')
 
 class FreqItem(QtGui.QTableWidgetItem):
     def __lt__(self, other):
@@ -461,6 +482,7 @@ class MainWindow(QtGui.QMainWindow):
 
         # Create Freq Dialog
         self.freqdialog = FreqDialog()
+        self.exportdialog = ExportDialog()
 
         # Create Table view
         self.createTbView()
@@ -484,6 +506,18 @@ class MainWindow(QtGui.QMainWindow):
         if fullname != '':
             self.loadDatas(fullname)
             self.updateScene()
+
+
+    def export2TXT(self):
+        jsonfreqs = self.freq2JSON()
+
+        lines = []
+        for station in jsonfreqs['stations']:
+            lines.append("%s %s" % (station['freq_center'], station['name']))
+
+        text = '\n'.join(lines)
+        self.exportdialog.exportEdit.setText(text)
+        self.exportdialog.exec_() #== QtGui.QDialog.Accepted:
 
 
 
@@ -636,31 +670,31 @@ class MainWindow(QtGui.QMainWindow):
         self.scene.legend.updateLegendSize(self.jsonstations)
         self.view.update()
 
-
-
-    def saveFreqs(self):
+    def freq2JSON(self, ignoreNotIdentified=False):
         rowcount = self.tablefreq.rowCount()
         self.tablefreq.sortItems(0)
 
-        json = {'stations': []}
+        jsonfreqs = {'stations': []}
         for row in range(rowcount):
             freqitem = self.tablefreq.item(row,0)
             bwitem = self.tablefreq.item(row,1)
             nameitem = self.tablefreq.item(row, 2)
+            if nameitem.text() == 'NOT IDENTIFIED':
+                continue
 
-            item = {}
-            item['freq_center'] = freqitem.text()
-            item['bw'] = bwitem.text()
-            item['name'] = nameitem.text()
-            json['stations'].append(item)
+            item = {'freq_center': freqitem.text(), 'bw': bwitem.text(), 'name': nameitem.text()}
+            jsonfreqs['stations'].append(item)
 
+        return jsonfreqs
 
+    def saveFreqs(self):
+        jsonfreqs = self.freq2JSON()
         exists = os.path.exists(self.filefreqs)
         if exists:
             os.rename(self.filefreqs, "%s.%s.backup" % (self.filefreqs, int(time.time())))
-        commons.saveJSON(self.filefreqs, json)
+        commons.saveJSON(self.filefreqs, jsonfreqs)
 
-        return json
+        return jsonfreqs
 
 
     def loadStations(self, filename):
@@ -692,6 +726,18 @@ class MainWindow(QtGui.QMainWindow):
 
 
     def createActions(self):
+        # File
+        self.openAction = QtGui.QAction("&Open", self, shortcut="Ctrl+O",
+                statusTip="Open file", triggered=self.selectHeatmapFile)
+
+        self.exitAction = QtGui.QAction("E&xit", self, shortcut="Ctrl+X",
+                statusTip="Quit Scenediagram example", triggered=self.close)
+
+        # Export
+        self.export2TXTAction = QtGui.QAction("Export to &Text", self, shortcut="Ctrl+B",
+                statusTip="Export to Text format", triggered=self.export2TXT)
+
+        # View
         self.zoomInAct = QtGui.QAction("ZoomIn", self, shortcut="Ctrl++",
                 statusTip="Zoom In", triggered=self.zoomIn)
 
@@ -705,16 +751,16 @@ class MainWindow(QtGui.QMainWindow):
                 statusTip="Fit windows", triggered=self.fitToWindow)
 
 
-        self.openAction = QtGui.QAction("&Open", self, shortcut="Ctrl+O",
-                statusTip="Open file", triggered=self.selectHeatmapFile)
-
-        self.exitAction = QtGui.QAction("E&xit", self, shortcut="Ctrl+X",
-                statusTip="Quit Scenediagram example", triggered=self.close)
 
     def createMenus(self):
         self.fileMenu = self.menuBar().addMenu("&File")
         self.fileMenu.addAction(self.openAction)
         self.fileMenu.addAction(self.exitAction)
+
+        self.exportMenu = self.menuBar().addMenu("&Export")
+        self.exportMenu.setEnabled(False)
+        self.exportMenu.addAction(self.export2TXTAction)
+
 
         self.viewMenu = self.menuBar().addMenu("&View")
         self.viewMenu.addAction(self.zoomInAct)
@@ -953,8 +999,10 @@ class MainWindow(QtGui.QMainWindow):
                 self.tablefreq.sortItems(0)
                 self.tablefreq.resizeColumnsToContents()
 
-                # Set statusbar
+                # Refresh status
                 self.statusBar().showMessage("[%s] => %s" % (self.sdrdatas.summaries['location']['name'], filename))
+                self.exportMenu.setEnabled(True)
+
 
 
     def updateScene(self):
