@@ -37,7 +37,7 @@
         },
         {
             "name": "FM",
-            "freq_start": "88M",
+            "freq_start": "87.5M",
             "freq_end": "108M",
             "interval": "10s",
             "nbsamples_lines": 2048
