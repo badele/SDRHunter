@@ -501,6 +501,18 @@ class MainWindow(QtGui.QMainWindow):
         self.setWindowTitle("Diagramscene")
 
 
+    def save2Image(self):
+        (filename, ext) = os.path.splitext(self.sdrdatas.csvfilename)
+        imgfile = '%s%s' % (filename, '.png')
+        exists = os.path.exists(imgfile)
+        if not exists:
+            image = QtGui.QImage(self.scene.sceneRect().size().width(), self.scene.sceneRect().size().height(), QtGui.QImage.Format_ARGB32)
+            painter = QtGui.QPainter(image)
+            painter.setRenderHint(QtGui.QPainter.Antialiasing)
+            self.scene.render(painter)
+            image.save(imgfile)
+
+
     def selectHeatmapFile(self):
         fullname, _ = QtGui.QFileDialog.getOpenFileName(self, "Open File",self.config['global']['rootdir'])
         if fullname != '':
@@ -730,6 +742,10 @@ class MainWindow(QtGui.QMainWindow):
         self.openAction = QtGui.QAction("&Open", self, shortcut="Ctrl+O",
                 statusTip="Open file", triggered=self.selectHeatmapFile)
 
+        self.saveimageAction = QtGui.QAction("&Save image", self, shortcut="Ctrl+S",
+                statusTip="Save to image", triggered=self.save2Image, enabled=False)
+
+
         self.exitAction = QtGui.QAction("E&xit", self, shortcut="Ctrl+X",
                 statusTip="Quit Scenediagram example", triggered=self.close)
 
@@ -755,6 +771,7 @@ class MainWindow(QtGui.QMainWindow):
     def createMenus(self):
         self.fileMenu = self.menuBar().addMenu("&File")
         self.fileMenu.addAction(self.openAction)
+        self.fileMenu.addAction(self.saveimageAction)
         self.fileMenu.addAction(self.exitAction)
 
         self.exportMenu = self.menuBar().addMenu("&Export")
@@ -971,6 +988,9 @@ class MainWindow(QtGui.QMainWindow):
         self.updateFreqsData()
 
     def loadDatas(self, filename):
+        self.exportMenu.setEnabled(False)
+        self.saveimageAction.setEnabled(False)
+
         exists = os.path.isfile(filename)
         if exists:
             posbasefile = filename.rfind(".csv")
@@ -1002,6 +1022,7 @@ class MainWindow(QtGui.QMainWindow):
                 # Refresh status
                 self.statusBar().showMessage("[%s] => %s" % (self.sdrdatas.summaries['location']['name'], filename))
                 self.exportMenu.setEnabled(True)
+                self.saveimageAction.setEnabled(True)
 
 
 
