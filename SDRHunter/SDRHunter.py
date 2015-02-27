@@ -98,6 +98,7 @@ def createScanInfoFile(cmdargs, config, scanlevel, start, gain):
     scaninfofilename = "%s.scaninfo" % filename
 
     scaninfo = {}
+    scaninfo['arguments'] = config['arguments']
     scaninfo['global'] = config['global']
     scaninfo['scanlevel'] = scanlevel
 
@@ -182,15 +183,12 @@ def executeRTLPower(cmdargs, config, scanlevel, start):
             # Rename file
             os.rename(running_filename, csv_filename)
 
-def loadOrGenerateSummaryFile(csv_filename, location):
+def loadOrGenerateSummaryFile(csv_filename):
     (filename, ext) = os.path.splitext(csv_filename)
     summary_filename = '%s%s' % (filename, '.summary')
 
     sdrdatas = commons.SDRDatas(csv_filename)
     sdrdatas.genSummarizeSignal()
-    # Add location
-    sdrdatas.summaries['location'] = {}
-    sdrdatas.summaries['location']['name'] = location
     saveJSON(summary_filename, sdrdatas.summaries)
 
 def executeSumarizeSignals(cmdargs, config, scanlevel, start):
@@ -235,9 +233,6 @@ def executeSumarizeSignals(cmdargs, config, scanlevel, start):
 
         sdrdatas = commons.SDRDatas(csv_filename)
         sdrdatas.genSummarizeSignal()
-        # Add location
-        sdrdatas.summaries['location'] = {}
-        sdrdatas.summaries['location']['name'] = cmdargs.location
         saveJSON(summary_filename, sdrdatas.summaries)
 
 
@@ -812,7 +807,7 @@ def main():
     args = parse_arguments(sys.argv[1:])  # pragma: no cover
 
     # Load JSON config
-    config = commons.loadConfigFile(commons.getJSONConfigFilename(), args.location)
+    config = commons.loadConfigFile(commons.getJSONConfigFilename(), args)
     if not config:
         raise Exception("No infos found in %s" % args.filename)
 

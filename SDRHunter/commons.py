@@ -116,11 +116,18 @@ def smooth(x,window_len=11,window='hanning'):
     y=np.convolve(w/w.sum(),s,mode='valid')
     return y
 
-def loadConfigFile(filename, location=""):
+def loadConfigFile(filename, args):
     config = loadJSON(filename)
 
     if config is None:
         raise Exception("No JSON SDRHunter configuration file find")
+
+    # Set arguments variables
+    location = ""
+    if not args is None:
+        location = args.location
+        config['arguments'] = {'location': {}}
+        config['arguments']['location']['name'] = location
 
     # Check global section
     if 'rootdir' not in config['global'] or config['global']['rootdir'] == '':
@@ -205,6 +212,13 @@ class SDRDatas(object):
     def __init__(self, csvfilename):
         self.csvfilename = csvfilename
         self.csv = self.loadCSVFile(csvfilename)
+        self.scaninfo = loadJSON(self.getFilenameFor('scaninfo'))
+        self.summaries = self.getSummaries()
+        self.hparam = self.getHeatParams()
+
+    def getFilenameFor(self,newext):
+        (filename, ext) = os.path.splitext(self.csvfilename)
+        return '%s.%s' % (filename, newext)
 
     def loadCSVFile(self, filename):
 
@@ -262,58 +276,110 @@ class SDRDatas(object):
 
         return {'freq_start': self.freq_start, 'freq_end': self.freq_end, 'freq_step': globalfreq_step, 'times': self.times, 'samples': self.samples}
 
-    def loadSummary(self):
-        (filename, ext) = os.path.splitext(self.csvfilename)
-        summaryfilename = '%s%s' % (filename, '.summary')
-        self.summaries = loadJSON(summaryfilename)
-        if 'location' not in self.summaries or ('location' in self.summaries and 'name' not in self.summaries['location']):
-            self.summaries['location'] = {'name': 'UNKNOW LOCATION'}
+
+    def getSummaries(self):
+        summaryfilename = self.getFilenameFor('summary')
+        exists = os.path.exists(summaryfilename)
+        if exists:
+            summaries = self.loadSummariesFromFile(summaryfilename)
+        else:
+            summaries = self.genSummarizeSignal()
+
+        return summaries
+
+
+    def loadSummariesFromFile(self,summaryfilename):
+        summaries = loadJSON(summaryfilename)
+        # if 'location' not in summaries or ('location' in summaries and 'name' not in summaries['location']):
+        #     summaries['location'] = {'name': 'UNKNOW LOCATION'}
+
+        return summaries
 
     def genSummarizeSignal(self):
-        self.summaries = {}
+        summaries = {}
 
         # Samples
-        self.summaries['samples'] = {}
-        self.summaries['samples']['nblines'] = self.csv['samples'].shape[0]
-        self.summaries['samples']['nbsamplescolumn'] = self.csv['samples'].shape[1]
+        summaries['samples'] = {}
+        summaries['samples']['nblines'] = self.csv['samples'].shape[0]
+        summaries['samples']['nbsamplescolumn'] = self.csv['samples'].shape[1]
 
         # Date
-        self.summaries['time'] = {}
-        self.summaries['time']['start'] = self.csv['times'][0]
-        self.summaries['time']['end'] = self.csv['times'][-1]
+        summaries['time'] = {}
+        summaries['time']['start'] = self.csv['times'][0]
+        summaries['time']['end'] = self.csv['times'][-1]
 
         # Frequencies
-        self.summaries['freq'] = {}
-        self.summaries['freq']['start'] = self.csv['freq_start']
-        self.summaries['freq']['end'] = self.csv['freq_end']
-        self.summaries['freq']['step'] = self.csv['freq_step']
+        summaries['freq'] = {}
+        summaries['freq']['start'] = self.csv['freq_start']
+        summaries['freq']['end'] = self.csv['freq_end']
+        summaries['freq']['step'] = self.csv['freq_step']
 
         # Avg signal
         avgsignal = np.mean(self.csv['samples'], axis=0)
-        self.computeAvgSignal('avg', avgsignal)
+        summaries = self.computeAvgSignal(summaries, 'avg', avgsignal)
 
         # Min signal
         minsignal = np.min(self.csv['samples'], axis=0)
-        self.computeAvgSignal('min', minsignal)
+        summaries = self.computeAvgSignal(summaries, 'min', minsignal)
 
         # Max signal
         maxsignal = np.max(self.csv['samples'], axis=0)
-        self.computeAvgSignal('max', maxsignal)
+        summaries = self.computeAvgSignal(summaries, 'max', maxsignal)
 
         # Delta signal
         deltasignal = maxsignal - minsignal
-        self.computeAvgSignal('delta', deltasignal)
+        summaries = self.computeAvgSignal(summaries, 'delta', deltasignal)
+
+        return summaries
+
+    def getHeatParams(self):
+        hparamfilename = self.getFilenameFor('hparam')
+        exists = os.path.exists(hparamfilename)
+        if exists:
+            hparam = self.loadHparamFromFile(hparamfilename)
+        else:
+            hparam = self.genHeatmapParameters()
+
+        return hparam
+
+    def loadHparamFromFile(self,hparamfilename):
+        hparam = loadJSON(hparamfilename)
+        return hparam
 
 
-    def computeAvgSignal(self, summaryname, spectre):
-        self.summaries[summaryname] = {}
-        self.summaries[summaryname]['signal'] = spectre.tolist()
+    def genHeatmapParameters(self):
+        parameters = {}
+        parameters['reversetextorder'] = True
+
+        # Db
+        #parameters['db'] = {}
+        ##parameters['db']['mean'] = summaries['avg']['mean']
+        #parameters['db']['min'] = summaries['avg']['min']
+        #parameters['db']['max'] = summaries['avg']['max']
+
+        # Text
+        parameters['texts'] = []
+        parameters['texts'].append({'text': "Min signal: %.2f" % self.summaries['avg']['min']})
+        parameters['texts'].append({'text': "Max signal: %.2f" % self.summaries['avg']['max']})
+        parameters['texts'].append({'text': "Mean signal: %.2f" % self.summaries['avg']['mean']})
+        parameters['texts'].append({'text': "Std signal: %.2f" % self.summaries['avg']['std']})
+
+        parameters['texts'].append({'text': ""})
+        parameters['texts'].append({'text': "avg min %.2f" % self.summaries['avg']['min']})
+        parameters['texts'].append({'text': "std min %.2f" % self.summaries['avg']['std']})
+
+        return parameters
+
+    def computeAvgSignal(self, summaries, summaryname, spectre):
+        #summaries.update({summaryname: {}})
+        summaries[summaryname] = {}
+        summaries[summaryname]['signal'] = spectre.tolist()
 
         # AVG signal
-        self.summaries[summaryname]['min'] = np.min(spectre)
-        self.summaries[summaryname]['max'] = np.max(spectre)
-        self.summaries[summaryname]['mean'] = np.mean(spectre)
-        self.summaries[summaryname]['std'] = np.std(spectre)
+        summaries[summaryname]['min'] = np.min(spectre)
+        summaries[summaryname]['max'] = np.max(spectre)
+        summaries[summaryname]['mean'] = np.mean(spectre)
+        summaries[summaryname]['std'] = np.std(spectre)
 
         # Compute Ground Noise of signal
         lensignal = len(spectre)
@@ -323,22 +389,24 @@ class SDRDatas(object):
 
         peakminidx = []
         for idx in peakmin[0]:
-            if smooth_signal[:lensignal][idx] < self.summaries[summaryname]['mean']:
+            if smooth_signal[:lensignal][idx] < summaries[summaryname]['mean']:
                 peakminidx.append(idx)
-        self.summaries[summaryname]['peak'] = {}
-        self.summaries[summaryname]['peak']['min'] = {}
-        self.summaries[summaryname]['peak']['min']['idx'] = peakminidx
-        self.summaries[summaryname]['peak']['min']['mean'] = np.mean(spectre[peakminidx])
-        self.summaries[summaryname]['peak']['min']['std'] = np.std(spectre[peakminidx])
+        summaries[summaryname]['peak'] = {}
+        summaries[summaryname]['peak']['min'] = {}
+        summaries[summaryname]['peak']['min']['idx'] = peakminidx
+        summaries[summaryname]['peak']['min']['mean'] = np.mean(spectre[peakminidx])
+        summaries[summaryname]['peak']['min']['std'] = np.std(spectre[peakminidx])
 
         peakmaxidx = []
         for idx in peakmax[0]:
-            if smooth_signal[:lensignal][idx] > self.summaries[summaryname]['mean']:
+            if smooth_signal[:lensignal][idx] > summaries[summaryname]['mean']:
                 peakmaxidx.append(idx)
-        self.summaries[summaryname]['peak']['max'] = {}
-        self.summaries[summaryname]['peak']['max']['idx'] = peakmaxidx
-        self.summaries[summaryname]['peak']['max']['mean'] = np.mean(spectre[peakmaxidx])
-        self.summaries[summaryname]['peak']['max']['std'] = np.std(spectre[peakmaxidx])
+        summaries[summaryname]['peak']['max'] = {}
+        summaries[summaryname]['peak']['max']['idx'] = peakmaxidx
+        summaries[summaryname]['peak']['max']['mean'] = np.mean(spectre[peakmaxidx])
+        summaries[summaryname]['peak']['max']['std'] = np.std(spectre[peakmaxidx])
+
+        return summaries
 
     def power2RGB(self, power):
         g = (power - self.summaries['min']['min']) / (self.summaries['max']['max'] - self.summaries['min']['min'])

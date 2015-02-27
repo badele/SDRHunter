@@ -9,6 +9,7 @@ from PySide import QtCore, QtGui
 
 import commons
 
+
 class FreqDialog(QtGui.QDialog):
     def __init__(self, parent=None):
         super(FreqDialog, self).__init__(parent)
@@ -58,7 +59,6 @@ class FreqDialog(QtGui.QDialog):
 
         grid.addLayout(vbox, 4, 1)
 
-
         self.setLayout(grid)
         self.setGeometry(300, 300, 350, 50)
         self.setWindowTitle('Review')
@@ -70,7 +70,7 @@ class FreqDialog(QtGui.QDialog):
 
     def browse(self):
         directory = QtGui.QFileDialog.getExistingDirectory(self, "Find Files",
-                QtCore.QDir.currentPath())
+                                                           QtCore.QDir.currentPath())
 
         if directory:
             if self.directoryComboBox.findText(directory) == -1:
@@ -93,7 +93,7 @@ class FreqDialog(QtGui.QDialog):
         if not fileName:
             fileName = "*"
         files = self.currentDir.entryList([fileName],
-                QtCore.QDir.Files | QtCore.QDir.NoSymLinks)
+                                          QtCore.QDir.Files | QtCore.QDir.NoSymLinks)
 
         if text:
             files = self.findFiles(files, text)
@@ -108,8 +108,8 @@ class ExportDialog(QtGui.QDialog):
         self.exportEdit = QtGui.QTextEdit()
 
         # Button
-        #buttonBox = QtGui.QDialogButtonBox(QtGui.QDialogButtonBox.Ok | QtGui.QDialogButtonBox.Cancel)
-        #buttonBox.accepted(self.valid)
+        # buttonBox = QtGui.QDialogButtonBox(QtGui.QDialogButtonBox.Ok | QtGui.QDialogButtonBox.Cancel)
+        # buttonBox.accepted(self.valid)
 
         # Add edit section
         grid = QtGui.QGridLayout()
@@ -122,10 +122,12 @@ class ExportDialog(QtGui.QDialog):
         self.setGeometry(100, 100, 640, 640)
         self.setWindowTitle('Review')
 
+
 class FreqItem(QtGui.QTableWidgetItem):
     def __lt__(self, other):
         return (commons.hz2Float(self.data(QtCore.Qt.DisplayRole)) <
                 commons.hz2Float(other.data(QtCore.Qt.DisplayRole)))
+
 
 class MyTableModel(QtCore.QAbstractTableModel):
     def __init__(self, parent, mylist, header, *args):
@@ -196,7 +198,8 @@ class FreqScene(QtGui.QGraphicsScene):
 
     def generateHeatmap(self, datas):
         # Try load file
-        image = QtGui.QImage(datas.summaries['samples']['nbsamplescolumn'], datas.summaries['samples']['nblines'], QtGui.QImage.Format_RGB32)
+        image = QtGui.QImage(datas.summaries['samples']['nbsamplescolumn'], datas.summaries['samples']['nblines'],
+                             QtGui.QImage.Format_RGB32)
 
         y = 0
         for line in datas.samples:
@@ -216,9 +219,9 @@ class FreqScene(QtGui.QGraphicsScene):
 
         if e.modifiers() & QtCore.Qt.ControlModifier:
             if e.delta() < 0:
-                self.views()[0].scale(0.95,0.95)
+                self.views()[0].scale(0.95, 0.95)
             else:
-                self.views()[0].scale(1.05,1.05)
+                self.views()[0].scale(1.05, 1.05)
             e.accept()
 
 
@@ -261,7 +264,8 @@ class RulerItem(QtGui.QGraphicsItem):
         return self.bigheight + fm.height()
 
     def paint(self, painter, options, widget):
-        painter.setPen(QtGui.QPen(QtCore.Qt.white, 1, QtCore.Qt.SolidLine)) #, QtCore.Qt.RoundCap, QtCore.Qt.RoundJoin))
+        painter.setPen(
+            QtGui.QPen(QtCore.Qt.white, 1, QtCore.Qt.SolidLine))  # , QtCore.Qt.RoundCap, QtCore.Qt.RoundJoin))
 
         gradientinterval = [1000, 5000, 10000, 50000, 100000, 500000, 1000000, 5000000, 10000000, 50000000, 100000000]
         grandientheights = [self.supersmallheight, self.smallheight, self.middleheight, self.bigheight]
@@ -276,7 +280,8 @@ class RulerItem(QtGui.QGraphicsItem):
                     posheight += 1
                     for freq in range(0, int(self.scene().freqend - self.scene().freqstart), ginterval):
                         posx = freq / self.scene().freqstep
-                        line = QtCore.QLineF(QtCore.QPointF(posx, self.height() - grandientheights[posheight]), QtCore.QPointF(posx, self.height()))
+                        line = QtCore.QLineF(QtCore.QPointF(posx, self.height() - grandientheights[posheight]),
+                                             QtCore.QPointF(posx, self.height()))
 
                         painter.drawLine(line)
                         painter.setFont(self.font)
@@ -288,7 +293,7 @@ class RulerItem(QtGui.QGraphicsItem):
                         textpos = posx - (textwidth / 2)
                         if textpos > 0:
                             mess = commons.float2Hz(freq + self.scene().freqstart)
-                            painter.drawText(QtCore.QRectF(textpos,0,textwidth + (textwidth / 2), fm.height()), mess)
+                            painter.drawText(QtCore.QRectF(textpos, 0, textwidth + (textwidth / 2), fm.height()), mess)
                             painter.setFont(self.font)
 
 
@@ -317,7 +322,6 @@ class LegendItem(QtGui.QGraphicsItem):
         self.totallineheight = self.spacebefore + self.lineordotpos + self.centerline + self.textsizey + self.spaceafter
         self.legends_height = 0
 
-
         QtGui.QGraphicsItem.__init__(self)
 
     def boundingRect(self):
@@ -334,41 +338,52 @@ class LegendItem(QtGui.QGraphicsItem):
             for legend in self.legends_row[nbline]:
                 ypos = nbline * self.totallineheight
                 textsizex = legend['textright'] - legend['textleft']
-                if legend['textleft'] >= 0 or 1==1:
-                    painter.setPen(QtGui.QPen(QtCore.Qt.white, 1, QtCore.Qt.SolidLine, QtCore.Qt.RoundCap, QtCore.Qt.RoundJoin))
-                    painter.drawText(legend['textleft'], ypos + self.lineordotpos + self.centerline,textsizex, self.textsizey,QtCore.Qt.AlignHCenter,legend['name'])
+                if legend['textleft'] >= 0 or 1 == 1:
+                    painter.setPen(
+                        QtGui.QPen(QtCore.Qt.white, 1, QtCore.Qt.SolidLine, QtCore.Qt.RoundCap, QtCore.Qt.RoundJoin))
+                    painter.drawText(legend['textleft'], ypos + self.lineordotpos + self.centerline, textsizex,
+                                     self.textsizey, QtCore.Qt.AlignHCenter, legend['name'])
                     last_line_xpos[nbline] = legend['textleft'] + textsizex
 
                     # Check if bandwith in the same point
                     if int(legend['posright'] - legend['posleft']) > 5:
-                        line = QtCore.QLineF(legend['posleft'] + 1, ypos + self.lineordotpos, legend['posright'] - 1, ypos + self.lineordotpos)
+                        line = QtCore.QLineF(legend['posleft'] + 1, ypos + self.lineordotpos, legend['posright'] - 1,
+                                             ypos + self.lineordotpos)
                         painter.drawLine(line)
-                        line = QtCore.QLineF(legend['poscenter'], ypos + self.lineordotpos, legend['poscenter'], ypos + self.lineordotpos + self.centerline)
+                        line = QtCore.QLineF(legend['poscenter'], ypos + self.lineordotpos, legend['poscenter'],
+                                             ypos + self.lineordotpos + self.centerline)
                         painter.drawLine(line)
 
 
                         # Draw left limit
                         if legend['posleft'] < 0:
-                            painter.setPen(QtGui.QPen(QtCore.Qt.black, 1, QtCore.Qt.DotLine, QtCore.Qt.RoundCap, QtCore.Qt.RoundJoin))
+                            painter.setPen(QtGui.QPen(QtCore.Qt.black, 1, QtCore.Qt.DotLine, QtCore.Qt.RoundCap,
+                                                      QtCore.Qt.RoundJoin))
                             line = QtCore.QLineF(0, ypos + self.lineordotpos, 20, ypos + self.lineordotpos)
                             painter.drawLine(line)
                         else:
-                            painter.setPen(QtGui.QPen(QtCore.Qt.white, 1, QtCore.Qt.SolidLine, QtCore.Qt.RoundCap, QtCore.Qt.RoundJoin))
-                            line = QtCore.QLineF(legend['posleft'] + 1, ypos + self.lineordotpos, legend['posleft'] + 1, ypos + self.lineordotpos - 7)
+                            painter.setPen(QtGui.QPen(QtCore.Qt.white, 1, QtCore.Qt.SolidLine, QtCore.Qt.RoundCap,
+                                                      QtCore.Qt.RoundJoin))
+                            line = QtCore.QLineF(legend['posleft'] + 1, ypos + self.lineordotpos, legend['posleft'] + 1,
+                                                 ypos + self.lineordotpos - 7)
                             painter.drawLine(line)
 
                         # Draw right limit
                         if legend['posright'] > self.scene().width():
-                            painter.setPen(QtGui.QPen(QtCore.Qt.black, 1, QtCore.Qt.DotLine, QtCore.Qt.RoundCap, QtCore.Qt.RoundJoin))
-                            line = QtCore.QLineF(self.scene().width() - 20, ypos + self.lineordotpos, self.scene().width(), ypos + self.lineordotpos)
+                            painter.setPen(QtGui.QPen(QtCore.Qt.black, 1, QtCore.Qt.DotLine, QtCore.Qt.RoundCap,
+                                                      QtCore.Qt.RoundJoin))
+                            line = QtCore.QLineF(self.scene().width() - 20, ypos + self.lineordotpos,
+                                                 self.scene().width(), ypos + self.lineordotpos)
                             painter.drawLine(line)
                         else:
-                            painter.setPen(QtGui.QPen(QtCore.Qt.white, 1, QtCore.Qt.SolidLine, QtCore.Qt.RoundCap, QtCore.Qt.RoundJoin))
-                            line = QtCore.QLineF(legend['posright'] - 1, ypos + self.lineordotpos, legend['posright'] - 1, ypos + self.lineordotpos - 7)
+                            painter.setPen(QtGui.QPen(QtCore.Qt.white, 1, QtCore.Qt.SolidLine, QtCore.Qt.RoundCap,
+                                                      QtCore.Qt.RoundJoin))
+                            line = QtCore.QLineF(legend['posright'] - 1, ypos + self.lineordotpos,
+                                                 legend['posright'] - 1, ypos + self.lineordotpos - 7)
                             painter.drawLine(line)
                     else:
                         rect = QtCore.QRectF(legend['poscenter'] - 1, ypos + (self.lineordotpos / 2), 2, 2)
-                        painter.fillRect(rect,QtGui.QBrush(QtCore.Qt.cyan))
+                        painter.fillRect(rect, QtGui.QBrush(QtCore.Qt.cyan))
 
 
     def updateLegendSize(self, jsonstations):
@@ -399,8 +414,12 @@ class LegendItem(QtGui.QGraphicsItem):
                     station['posleft'] = (station['cropped_left'] - self.scene().freqstart) / self.scene().freqstep
                     station['poscenter'] = (station['cropped_center'] - self.scene().freqstart) / self.scene().freqstep
                     station['posright'] = (station['cropped_right'] - self.scene().freqstart) / self.scene().freqstep
-                    station['textleft'] = ((station['cropped_center'] - self.scene().freqstart) / self.scene().freqstep) - (textsizex/2)
-                    station['textright'] = ((station['cropped_center'] - self.scene().freqstart) / self.scene().freqstep) + (textsizex/2)
+                    station['textleft'] = ((station[
+                                                'cropped_center'] - self.scene().freqstart) / self.scene().freqstep) - (
+                                              textsizex / 2)
+                    station['textright'] = ((station[
+                                                 'cropped_center'] - self.scene().freqstart) / self.scene().freqstep) + (
+                                               textsizex / 2)
                     # calc min and max position (line or text)
                     station['cropminleft'] = min(station['posleft'], station['textleft'])
                     station['cropmaxright'] = max(station['posright'], station['textright'])
@@ -424,7 +443,7 @@ class LegendItem(QtGui.QGraphicsItem):
                 # Check if can i append the freq
                 if nbcolumns > 0:
                     if station['cropminleft'] >= self.legends_row[lineidx][nbcolumns - 1]['cropmaxright'] or \
-                            station['cropmaxright'] <= self.legends_row[lineidx][0]['cropminleft']:
+                                    station['cropmaxright'] <= self.legends_row[lineidx][0]['cropminleft']:
                         append_in_same_line = True
                         break
 
@@ -478,7 +497,7 @@ class MainWindow(QtGui.QMainWindow):
 
         # Ajout des composants dans le layout
         hlayout = QtGui.QHBoxLayout()
-        #hlayout.addWidget(self.toolBox)
+        # hlayout.addWidget(self.toolBox)
 
         # Create Freq Dialog
         self.freqdialog = FreqDialog()
@@ -490,7 +509,7 @@ class MainWindow(QtGui.QMainWindow):
         # Create view
         self.view = QtGui.QGraphicsView(self.scene)
         self.view.setMouseTracking(True)
-        #self.view.setFocusPolicy(QtCore.Qt.NoFocus)
+        # self.view.setFocusPolicy(QtCore.Qt.NoFocus)
 
         hlayout.addWidget(self.view)
 
@@ -506,7 +525,8 @@ class MainWindow(QtGui.QMainWindow):
         imgfile = '%s%s' % (filename, '.png')
         exists = os.path.exists(imgfile)
         if not exists:
-            image = QtGui.QImage(self.scene.sceneRect().size().width(), self.scene.sceneRect().size().height(), QtGui.QImage.Format_ARGB32)
+            image = QtGui.QImage(self.scene.sceneRect().size().width(), self.scene.sceneRect().size().height(),
+                                 QtGui.QImage.Format_ARGB32)
             painter = QtGui.QPainter(image)
             painter.setRenderHint(QtGui.QPainter.Antialiasing)
             self.scene.render(painter)
@@ -514,7 +534,7 @@ class MainWindow(QtGui.QMainWindow):
 
 
     def selectHeatmapFile(self):
-        fullname, _ = QtGui.QFileDialog.getOpenFileName(self, "Open File",self.config['global']['rootdir'])
+        fullname, _ = QtGui.QFileDialog.getOpenFileName(self, "Open File", self.config['global']['rootdir'])
         if fullname != '':
             self.loadDatas(fullname)
             self.updateScene()
@@ -529,8 +549,7 @@ class MainWindow(QtGui.QMainWindow):
 
         text = '\n'.join(lines)
         self.exportdialog.exportEdit.setText(text)
-        self.exportdialog.exec_() #== QtGui.QDialog.Accepted:
-
+        self.exportdialog.exec_()  # == QtGui.QDialog.Accepted:
 
 
     def initScene(self):
@@ -542,10 +561,10 @@ class MainWindow(QtGui.QMainWindow):
         # Add ruler
         self.scene.ruler = RulerItem()
 
-        #Add Img
+        # Add Img
         self.scene.heatmap = QtGui.QGraphicsPixmapItem()
 
-        #Add Freq Legend
+        # Add Freq Legend
         self.scene.legend = LegendItem()
 
         # Set line freq
@@ -568,10 +587,10 @@ class MainWindow(QtGui.QMainWindow):
 
 
     def zoomIn(self):
-        self.view.scale(1.25,1.25)
+        self.view.scale(1.25, 1.25)
 
     def zoomOut(self):
-        self.view.scale(0.75,0.75)
+        self.view.scale(0.75, 0.75)
 
     def normalSize(self):
         self.imageLabel.adjustSize()
@@ -579,7 +598,6 @@ class MainWindow(QtGui.QMainWindow):
 
     def fitToWindow(self):
         self.view.fitInView()
-
 
 
     def sceneScaleChanged(self, scale):
@@ -599,27 +617,27 @@ class MainWindow(QtGui.QMainWindow):
         self.underlineAction.setChecked(font.underline())
 
     def clickeditemfreq(self, item):
-        freqitem = self.tablefreq.item(item.row(),0)
-        bwitem = self.tablefreq.item(item.row(),1)
+        freqitem = self.tablefreq.item(item.row(), 0)
+        bwitem = self.tablefreq.item(item.row(), 1)
         freqhz = commons.hz2Float(freqitem.text())
         bwhz = commons.hz2Float(bwitem.text())
 
         self.selected_center_pos = self.scene.Hz2Pos(freqhz)
         self.bandwidth_pixels = bwhz / self.scene.freqstep
-        #self.bandwidth_pixels = self.scene.Hz2Pos(freqhz + (bwhz / 2)) - self.selectedfreq
+        # self.bandwidth_pixels = self.scene.Hz2Pos(freqhz + (bwhz / 2)) - self.selectedfreq
 
         vvalue = self.scene.views()[0].verticalScrollBar().value()
         currentviewport = self.scene.views()[0].viewport()
-        self.scene.views()[0].centerOn(self.current_pos,0)
+        self.scene.views()[0].centerOn(self.current_pos, 0)
         self.scene.views()[0].verticalScrollBar().setValue(vvalue)
 
         self.scene.mousestep = FreqScene.stepselected
         self.updateFreqsData()
 
     def doubleclickeditemfreq(self, item):
-        freqitem = self.tablefreq.item(item.row(),0)
-        bwitem = self.tablefreq.item(item.row(),1)
-        nameitem = self.tablefreq.item(item.row(),2)
+        freqitem = self.tablefreq.item(item.row(), 0)
+        bwitem = self.tablefreq.item(item.row(), 1)
+        nameitem = self.tablefreq.item(item.row(), 2)
 
         values = {
             'freq_center': freqitem.text(),
@@ -629,39 +647,39 @@ class MainWindow(QtGui.QMainWindow):
         self.showDialogFreq(item.row(), values)
 
     def showDialogFreq(self, rowid, values):
-            # Fill the edit fields
-            self.freqdialog.freqEdit.setText(values['freq_center'])
-            self.freqdialog.bandEdit.setText(values['bw'])
-            self.freqdialog.nameEdit.setText(values['name'])
+        # Fill the edit fields
+        self.freqdialog.freqEdit.setText(values['freq_center'])
+        self.freqdialog.bandEdit.setText(values['bw'])
+        self.freqdialog.nameEdit.setText(values['name'])
 
-            # Update de the result
-            if self.freqdialog.exec_() == QtGui.QDialog.Accepted:
-                edtresult = {
-                    'freq_center': self.freqdialog.freqEdit.text(),
-                    'bw': self.freqdialog.bandEdit.text(),
-                    'name': self.freqdialog.nameEdit.text()
-                }
-                self.insertOrUpdateFreq(rowid, edtresult)
-                self.jsonstations[0] = self.saveFreqs()
-                self.scene.legend.updateLegendSize(self.jsonstations)
-                self.view.update()
+        # Update de the result
+        if self.freqdialog.exec_() == QtGui.QDialog.Accepted:
+            edtresult = {
+                'freq_center': self.freqdialog.freqEdit.text(),
+                'bw': self.freqdialog.bandEdit.text(),
+                'name': self.freqdialog.nameEdit.text()
+            }
+            self.insertOrUpdateFreq(rowid, edtresult)
+            self.jsonstations[0] = self.saveFreqs()
+            self.scene.legend.updateLegendSize(self.jsonstations)
+            self.view.update()
 
 
     def insertOrUpdateFreq(self, rowid, values):
-            if rowid == -1:
-                rowid = self.tablefreq.rowCount()
-                self.tablefreq.insertRow(rowid)
+        if rowid == -1:
+            rowid = self.tablefreq.rowCount()
+            self.tablefreq.insertRow(rowid)
 
-            # Items
-            freqitem = FreqItem(values['freq_center'])
-            bwitem = QtGui.QTableWidgetItem(values['bw'])
-            nameitem = QtGui.QTableWidgetItem("")
-            if 'name' in values:
-                nameitem.setText(values['name'])
+        # Items
+        freqitem = FreqItem(values['freq_center'])
+        bwitem = QtGui.QTableWidgetItem(values['bw'])
+        nameitem = QtGui.QTableWidgetItem("")
+        if 'name' in values:
+            nameitem.setText(values['name'])
 
-            self.tablefreq.setItem(rowid, 0, freqitem)
-            self.tablefreq.setItem(rowid, 1, bwitem)
-            self.tablefreq.setItem(rowid, 2, nameitem)
+        self.tablefreq.setItem(rowid, 0, freqitem)
+        self.tablefreq.setItem(rowid, 1, bwitem)
+        self.tablefreq.setItem(rowid, 2, nameitem)
 
     def deleteFreqs(self, rows):
 
@@ -688,8 +706,8 @@ class MainWindow(QtGui.QMainWindow):
 
         jsonfreqs = {'stations': []}
         for row in range(rowcount):
-            freqitem = self.tablefreq.item(row,0)
-            bwitem = self.tablefreq.item(row,1)
+            freqitem = self.tablefreq.item(row, 0)
+            bwitem = self.tablefreq.item(row, 1)
             nameitem = self.tablefreq.item(row, 2)
             if nameitem.text() == 'NOT IDENTIFIED':
                 continue
@@ -740,32 +758,30 @@ class MainWindow(QtGui.QMainWindow):
     def createActions(self):
         # File
         self.openAction = QtGui.QAction("&Open", self, shortcut="Ctrl+O",
-                statusTip="Open file", triggered=self.selectHeatmapFile)
+                                        statusTip="Open file", triggered=self.selectHeatmapFile)
 
         self.saveimageAction = QtGui.QAction("&Save image", self, shortcut="Ctrl+S",
-                statusTip="Save to image", triggered=self.save2Image, enabled=False)
-
+                                             statusTip="Save to image", triggered=self.save2Image, enabled=False)
 
         self.exitAction = QtGui.QAction("E&xit", self, shortcut="Ctrl+X",
-                statusTip="Quit Scenediagram example", triggered=self.close)
+                                        statusTip="Quit Scenediagram example", triggered=self.close)
 
         # Export
         self.export2TXTAction = QtGui.QAction("Export to &Text", self, shortcut="Ctrl+B",
-                statusTip="Export to Text format", triggered=self.export2TXT)
+                                              statusTip="Export to Text format", triggered=self.export2TXT)
 
         # View
         self.zoomInAct = QtGui.QAction("ZoomIn", self, shortcut="Ctrl++",
-                statusTip="Zoom In", triggered=self.zoomIn)
+                                       statusTip="Zoom In", triggered=self.zoomIn)
 
         self.zoomOutAct = QtGui.QAction("ZommOut", self, shortcut="Ctrl+-",
-                statusTip="Zoom Out", triggered=self.zoomOut)
+                                        statusTip="Zoom Out", triggered=self.zoomOut)
 
         self.normalSizeAct = QtGui.QAction("Normal", self, shortcut="Ctrl+0",
-                statusTip="Normal", triggered=self.normalSize)
+                                           statusTip="Normal", triggered=self.normalSize)
 
         self.fitToWindowAct = QtGui.QAction("Fit", self, shortcut="Ctrl+F",
-                statusTip="Fit windows", triggered=self.fitToWindow)
-
+                                            statusTip="Fit windows", triggered=self.fitToWindow)
 
 
     def createMenus(self):
@@ -778,14 +794,12 @@ class MainWindow(QtGui.QMainWindow):
         self.exportMenu.setEnabled(False)
         self.exportMenu.addAction(self.export2TXTAction)
 
-
         self.viewMenu = self.menuBar().addMenu("&View")
         self.viewMenu.addAction(self.zoomInAct)
         self.viewMenu.addAction(self.zoomOutAct)
         self.viewMenu.addAction(self.normalSizeAct)
         self.viewMenu.addSeparator()
         self.viewMenu.addAction(self.fitToWindowAct)
-
 
 
     def createToolbars(self):
@@ -849,8 +863,6 @@ class MainWindow(QtGui.QMainWindow):
         self.lblselectedfreq.setAlignment(QtCore.Qt.AlignCenter)
         self.lblselectedbw.setAlignment(QtCore.Qt.AlignCenter)
 
-
-
         self.pointerToolbar = self.addToolBar("Select freq")
         # self.pointerToolbar.addWidget(pointerButton)
         # self.pointerToolbar.addWidget(selectleftfreqButton)
@@ -869,8 +881,8 @@ class MainWindow(QtGui.QMainWindow):
         pressedkey = e.key()
 
         # if pressedkey == ZoomIn:
-        #     #self.scene.bandwidthvalue += 1
-        #     self.zoomIn()
+        # #self.scene.bandwidthvalue += 1
+        # self.zoomIn()
         #
         # if pressedkey == ZoomOut:
         #     self.zoomOut()
@@ -887,11 +899,10 @@ class MainWindow(QtGui.QMainWindow):
             if len(selectedrows):
                 self.deleteFreqs(selectedrows)
 
-
         if pressedkey == QtCore.Qt.Key_Space or pressedkey == QtCore.Qt.Key_Return:
             values = {
-                'freq_center': commons.float2Hz(self.selectedfreq,3),
-                'bw': commons.float2Hz(self.bwfreq,3),
+                'freq_center': commons.float2Hz(self.selectedfreq, 3),
+                'bw': commons.float2Hz(self.bwfreq, 3),
                 'name': 'NOT IDENTIFIED'
             }
             self.showDialogFreq(-1, values)
@@ -917,27 +928,27 @@ class MainWindow(QtGui.QMainWindow):
         else:
             self.scene.linefreq.setPen(QtGui.QPen(self.scene.lineselectedcolor, 1))
             self.scene.linefreq.setLine(self.selected_center_pos, 0, self.selected_center_pos, self.scene.height())
-            self.scene.rectbandwidth.setRect(left, 0, right,self.scene.height())
+            self.scene.rectbandwidth.setRect(left, 0, right, self.scene.height())
             self.scene.rectbandwidth.setVisible(True)
 
         # Refresh label
         if self.current_pos != -1:
             self.currentfreq = self.scene.Pos2Hz(self.current_pos)
-            self.lblcurrentfreq.setText("Current: %sHz" % commons.float2Hz(self.currentfreq,3))
+            self.lblcurrentfreq.setText("Current: %sHz" % commons.float2Hz(self.currentfreq, 3))
         else:
             self.currentfreq = -1
             self.lblcurrentfreq.setText("")
 
         if self.selected_center_pos != -1:
             self.selectedfreq = self.scene.Pos2Hz(self.selected_center_pos)
-            self.lblselectedfreq.setText(" Selected: %sHz" % commons.float2Hz(self.selectedfreq,3))
+            self.lblselectedfreq.setText(" Selected: %sHz" % commons.float2Hz(self.selectedfreq, 3))
         else:
             self.selectedfreq = -1
             self.lblselectedfreq.setText("")
 
         if self.bandwidth_pixels != -1:
             self.bwfreq = (self.scene.Pos2Hz(self.bandwidth_pixels) - self.scene.freqstart) * 2
-            self.lblselectedbw.setText(" Bandwidth: %sHz" % commons.float2Hz(self.bwfreq,3))
+            self.lblselectedbw.setText(" Bandwidth: %sHz" % commons.float2Hz(self.bwfreq, 3))
         else:
             self.bwfreq = -1
             self.lblselectedbw.setText("")
@@ -975,8 +986,8 @@ class MainWindow(QtGui.QMainWindow):
         # Move cursor
         if self.scene.mousestep == FreqScene.stepmove:
             pass
-            #self.selected_center_pos = self.current_pos
-            #self.bandwidth_pos = 0
+            # self.selected_center_pos = self.current_pos
+            # self.bandwidth_pos = 0
 
         # Begin bandwidth selection
         if self.scene.mousestep == FreqScene.stepbandwidth:
@@ -999,16 +1010,16 @@ class MainWindow(QtGui.QMainWindow):
 
                 # Load files
                 self.sdrdatas = commons.SDRDatas(filename)
-                self.sdrdatas.loadSummary()
-                self.hparam = commons.loadJSON("%s.hparam" % basefile)
 
                 # Load scan result
                 self.jsonstations = []
-                self.filefreqs = os.path.join(os.path.abspath(os.path.join(os.path.dirname(filename), '..')), "scanresult.json")
+                self.filefreqs = os.path.join(os.path.abspath(os.path.join(os.path.dirname(filename), '..')),
+                                              "scanresult.json")
                 self.jsonstations.append(self.loadStations(self.filefreqs))
 
-                if 'legends' in self.hparam:
-                    for legend in self.hparam['legends']:
+                globalcfg = self.sdrdatas.scaninfo['global']
+                if 'heatmap' in globalcfg and 'stationsfilenames' in globalcfg['heatmap']:
+                    for legend in self.sdrdatas.scaninfo['global']['heatmap']:
                         self.jsonstations.append(self.loadStations(legend))
 
                 # Add to table
@@ -1020,15 +1031,20 @@ class MainWindow(QtGui.QMainWindow):
                 self.tablefreq.resizeColumnsToContents()
 
                 # Refresh status
-                self.statusBar().showMessage("[%s] => %s" % (self.sdrdatas.summaries['location']['name'], filename))
+                argumentcfg = self.sdrdatas.scaninfo['arguments']
+                self.statusBar().showMessage("?[%s] @[%s] => %s" % (
+                    argumentcfg['location']['name'],
+                    globalcfg['author']['name'],
+                    filename)
+                )
                 self.exportMenu.setEnabled(True)
                 self.saveimageAction.setEnabled(True)
 
 
-
     def updateScene(self):
         # Reset scene
-        self.scene.setFreqRange(self.sdrdatas.summaries['freq']['start'], self.sdrdatas.summaries['freq']['end'], self.sdrdatas.summaries['freq']['step'])
+        self.scene.setFreqRange(self.sdrdatas.summaries['freq']['start'], self.sdrdatas.summaries['freq']['end'],
+                                self.sdrdatas.summaries['freq']['step'])
 
         # Generate Heatmap image
         pixmap = self.scene.generateHeatmap(self.sdrdatas)
@@ -1050,10 +1066,11 @@ class MainWindow(QtGui.QMainWindow):
 def main():
     app = QtGui.QApplication(sys.argv)
     mainWindow = MainWindow()
-    mainWindow.config = commons.loadConfigFile(commons.getJSONConfigFilename())
+    mainWindow.config = commons.loadConfigFile(commons.getJSONConfigFilename(), None)
     mainWindow.setGeometry(100, 100, 800, 500)
     mainWindow.show()
     sys.exit(app.exec_())
+
 
 if __name__ == '__main__':
     main()

@@ -1,5 +1,8 @@
 {
     "global": {
+        "author": {
+            "name": "UNKNOW"
+        },
         "rootdir": "",
         "ppm": 57,
         "gains": [25,50],
