@@ -93,6 +93,16 @@ def calcFilename(scanlevel, start, gain):
     return fullname
 
 
+def createScanInfoFile(cmdargs, config, scanlevel, start, gain):
+    filename = calcFilename(scanlevel, start, gain)
+    scaninfofilename = "%s.scaninfo" % filename
+
+    scaninfo = {}
+    scaninfo['global'] = config['global']
+    scaninfo['scanlevel'] = scanlevel
+
+    saveJSON(scaninfofilename, scaninfo)
+
 def executeShell(cmd, directory=None):
     p = subprocess.Popen(cmd, shell=True, cwd=directory, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     output, errors = p.communicate()
@@ -163,11 +173,25 @@ def executeRTLPower(cmdargs, config, scanlevel, start):
                 running_filename
             )
 
+            # Create Scan info file
+            createScanInfoFile(cmdargs, config, scanlevel, start, gain)
+
             # Call rtl_power shell command
             executeShell(cmd, cmddir)
 
             # Rename file
             os.rename(running_filename, csv_filename)
+
+def loadOrGenerateSummaryFile(csv_filename, location):
+    (filename, ext) = os.path.splitext(csv_filename)
+    summary_filename = '%s%s' % (filename, '.summary')
+
+    sdrdatas = commons.SDRDatas(csv_filename)
+    sdrdatas.genSummarizeSignal()
+    # Add location
+    sdrdatas.summaries['location'] = {}
+    sdrdatas.summaries['location']['name'] = location
+    saveJSON(summary_filename, sdrdatas.summaries)
 
 def executeSumarizeSignals(cmdargs, config, scanlevel, start):
     for gain in scanlevel['gains']:
