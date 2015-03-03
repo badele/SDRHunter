@@ -541,7 +541,7 @@ class MainWindow(QtGui.QMainWindow):
 
 
     def export2TXT(self):
-        jsonfreqs = self.freq2JSON()
+        jsonfreqs = self.tablefreq2JSON()
 
         lines = []
         for station in jsonfreqs['stations']:
@@ -700,7 +700,7 @@ class MainWindow(QtGui.QMainWindow):
         self.scene.legend.updateLegendSize(self.jsonstations)
         self.view.update()
 
-    def freq2JSON(self, ignoreNotIdentified=False):
+    def tablefreq2JSON(self, ignoreNotIdentified=False):
         rowcount = self.tablefreq.rowCount()
         self.tablefreq.sortItems(0)
 
@@ -709,8 +709,6 @@ class MainWindow(QtGui.QMainWindow):
             freqitem = self.tablefreq.item(row, 0)
             bwitem = self.tablefreq.item(row, 1)
             nameitem = self.tablefreq.item(row, 2)
-            if nameitem.text() == 'NOT IDENTIFIED':
-                continue
 
             item = {'freq_center': freqitem.text(), 'bw': bwitem.text(), 'name': nameitem.text()}
             jsonfreqs['stations'].append(item)
@@ -718,7 +716,7 @@ class MainWindow(QtGui.QMainWindow):
         return jsonfreqs
 
     def saveFreqs(self):
-        jsonfreqs = self.freq2JSON()
+        jsonfreqs = self.tablefreq2JSON()
         exists = os.path.exists(self.filefreqs)
         if exists:
             os.rename(self.filefreqs, "%s.%s.backup" % (self.filefreqs, int(time.time())))
@@ -1004,10 +1002,8 @@ class MainWindow(QtGui.QMainWindow):
 
         exists = os.path.isfile(filename)
         if exists:
-            posbasefile = filename.rfind(".csv")
-            if posbasefile != -1:
-                basefile = filename[:posbasefile]
-
+            iscsvfile = filename.rfind(".csv") > -1 or filename.rfind(".running") > -1
+            if iscsvfile:
                 # Load files
                 self.sdrdatas = commons.SDRDatas(filename)
 
