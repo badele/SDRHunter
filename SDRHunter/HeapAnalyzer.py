@@ -298,7 +298,8 @@ class RulerItem(QtGui.QGraphicsItem):
 
 
 class LegendItem(QtGui.QGraphicsItem):
-    def __init__(self):
+    def __init__(self, parent):
+        self.parent = parent
         self.bigheight = 15
         self.middleheight = 8
         self.smallheight = 3
@@ -314,7 +315,6 @@ class LegendItem(QtGui.QGraphicsItem):
 
         # For legend drawing
         self.legends_row = []
-        self.max_nb_lines_legend = 10
         self.spacebefore = 2
         self.lineordotpos = 7
         self.centerline = 5
@@ -461,7 +461,8 @@ class LegendItem(QtGui.QGraphicsItem):
                 self.legends_row[lineidx].append(station)
                 self.legends_row[lineidx] = sorted(self.legends_row[lineidx], key=lambda x: x['cropminleft'])
             else:
-                if len(self.legends_row) + 1 <= self.max_nb_lines_legend:
+                maxnb_lines = self.parent.sdrdatas.scaninfo['global']['heatmap']['maxnb_lines']
+                if len(self.legends_row) + 1 <= maxnb_lines:
                     self.legends_row.append([])
                     self.legends_row[len(self.legends_row) - 1].append(station)
 
@@ -488,7 +489,7 @@ class MainWindow(QtGui.QMainWindow):
         self.filefreqs = ''
         self.sdrdatas = None
         self.jsonstations = []
-        self.config = []
+        self.rootdir = {}
 
         self.createActions()
         self.createMenus()
@@ -534,7 +535,7 @@ class MainWindow(QtGui.QMainWindow):
 
 
     def selectHeatmapFile(self):
-        fullname, _ = QtGui.QFileDialog.getOpenFileName(self, "Open File", self.config['global']['rootdir'])
+        fullname, _ = QtGui.QFileDialog.getOpenFileName(self, "Open File", self.rootdir)
         if fullname != '':
             self.loadDatas(fullname)
             self.updateScene()
@@ -565,7 +566,7 @@ class MainWindow(QtGui.QMainWindow):
         self.scene.heatmap = QtGui.QGraphicsPixmapItem()
 
         # Add Freq Legend
-        self.scene.legend = LegendItem()
+        self.scene.legend = LegendItem(self)
 
         # Set line freq
         self.scene.linefreq = QtGui.QGraphicsLineItem()
@@ -1014,9 +1015,8 @@ class MainWindow(QtGui.QMainWindow):
                 self.jsonstations.append(self.loadStations(self.filefreqs))
 
                 globalcfg = self.sdrdatas.scaninfo['global']
-                if 'heatmap' in globalcfg and 'stationsfilenames' in globalcfg['heatmap']:
-                    for legend in self.sdrdatas.scaninfo['global']['heatmap']:
-                        self.jsonstations.append(self.loadStations(legend))
+                for legend in self.sdrdatas.scaninfo['global']['heatmap']['stationsfilenames']:
+                    self.jsonstations.append(self.loadStations(legend))
 
                 # Add to table
                 while self.tablefreq.rowCount() > 0:
@@ -1060,9 +1060,17 @@ class MainWindow(QtGui.QMainWindow):
 
 
 def main():
+    # Create main application
     app = QtGui.QApplication(sys.argv)
     mainWindow = MainWindow()
-    mainWindow.config = commons.loadConfigFile(commons.getJSONConfigFilename(), None)
+
+    # Load config file and get rootdir
+    config = commons.loadConfigFile(commons.getJSONConfigFilename(), None)
+    mainWindow.rootdir = os.path.dirname(os.path.realpath(__file__))
+    if 'rootdir' in config['global']:
+        mainWindow.rootdir = config['global']['rootdir']
+
+    # Resize and launch application
     mainWindow.setGeometry(100, 100, 800, 500)
     mainWindow.show()
     sys.exit(app.exec_())

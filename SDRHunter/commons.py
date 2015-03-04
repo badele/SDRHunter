@@ -212,9 +212,24 @@ class SDRDatas(object):
     def __init__(self, csvfilename):
         self.csvfilename = csvfilename
         self.csv = self.loadCSVFile(csvfilename)
-        self.scaninfo = loadJSON(self.getFilenameFor('scaninfo'))
+        self.scaninfo = self.loadScanInfo()
         self.summaries = self.getSummaries()
         self.hparam = self.getHeatParams()
+
+    def loadScanInfo(self):
+        scaninfo = loadJSON(self.getFilenameFor('scaninfo'))
+        if 'heatmap' not in scaninfo['global']:
+            scaninfo['global']['heatmap'] = {}
+
+        if 'stationsfilenames' not in scaninfo['global']['heatmap']:
+            dirname = os.path.dirname(os.path.realpath(__file__))
+            stationsfilename = os.path.join(dirname, "frequencies.json")
+            scaninfo['global']['heatmap']['stationsfilenames'] = [stationsfilename]
+
+        if 'maxnb_lines' not in scaninfo['global']['heatmap']:
+            scaninfo['global']['heatmap']['maxnb_lines'] = 10
+
+        return scaninfo
 
     def getFilenameFor(self,newext):
         (filename, ext) = os.path.splitext(self.csvfilename)
