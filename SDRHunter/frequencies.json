@@ -71,11 +71,6 @@
             "freq_right": 24.99e6
         },
         {
-            "name": "Time",
-            "freq_center": 25e6,
-            "bw": 10e3
-        },
-        {
             "name": "Fixe-mobile phone",
             "freq_left": 25.01e6,
             "freq_right": 25.07e6
@@ -122,11 +117,6 @@
             "freq_left":  26.960e6,
             "freq_right":  27.410e6,
             "comment": "40 Channels 10KHz"
-        },
-        {
-            "name": "Eurobalise",
-            "freq_center":  27.095e6,
-            "bw":  10e3
         },
         {
             "name": "meteorical tools",
@@ -200,11 +190,6 @@
             "bw": 10e3
         },
         {
-            "name": "Radiomessagerie",
-            "freq_center": 87.39e6,
-            "bw": 10e3
-        },
-        {
             "name": "French public state",
             "freq_left": 68e6,
             "freq_right": 87.5e6
@@ -220,16 +205,6 @@
             "freq_left": 118e6,
             "freq_right": 136.975e6,
             "comment": "Aeronautic control VOR + ILS"
-        },
-        {
-            "name": "International SOS",
-            "freq_center": 121.5e6,
-            "bw": 10e3
-        },
-        {
-            "name": "Aux International SOS",
-            "freq_center": 123.1e6,
-            "bw": 10e3
         },
         {
             "name": "Weathermap Satelite Down",
