@@ -15,14 +15,18 @@ class FreqDialog(QtGui.QDialog):
         super(FreqDialog, self).__init__(parent)
 
         # Label
-        title = QtGui.QLabel('Title')
-        freq = QtGui.QLabel('Freq')
-        bandwidth = QtGui.QLabel('Bandwidth')
+        authorlbl = QtGui.QLabel('Author')
+        titlelbl = QtGui.QLabel('Title')
+        freqlbl = QtGui.QLabel('Freq')
+        bandwidthlbl = QtGui.QLabel('Bandwidth')
+        otherlbl = QtGui.QLabel('Others')
 
         # Edit
+        self.authorshow = QtGui.QLabel('Author')
         self.nameEdit = QtGui.QLineEdit()
         self.freqEdit = QtGui.QLineEdit()
         self.bandEdit = QtGui.QLineEdit()
+        self.otherEdit = QtGui.QTextEdit()
 
         # Button
         okButton = QtGui.QPushButton("OK")
@@ -48,19 +52,31 @@ class FreqDialog(QtGui.QDialog):
         grid = QtGui.QGridLayout()
         grid.setSpacing(10)
 
-        grid.addWidget(title, 1, 0)
-        grid.addWidget(self.nameEdit, 1, 1)
+        posgrid = 0
+        posgrid += 1
+        grid.addWidget(authorlbl, posgrid, 0)
+        grid.addWidget(self.authorshow, posgrid, 1)
 
-        grid.addWidget(freq, 2, 0)
-        grid.addWidget(self.freqEdit, 2, 1)
+        posgrid += 1
+        grid.addWidget(titlelbl, posgrid, 0)
+        grid.addWidget(self.nameEdit, posgrid, 1)
 
-        grid.addWidget(bandwidth, 3, 0)
-        grid.addWidget(self.bandEdit, 3, 1)
+        posgrid += 1
+        grid.addWidget(freqlbl, posgrid, 0)
+        grid.addWidget(self.freqEdit, posgrid, 1)
 
-        grid.addLayout(vbox, 4, 1)
+        posgrid += 1
+        grid.addWidget(bandwidthlbl, posgrid, 0)
+        grid.addWidget(self.bandEdit, posgrid, 1)
+
+        posgrid += 1
+        grid.addWidget(otherlbl, posgrid, 0)
+        grid.addWidget(self.otherEdit, posgrid, 1)
+
+        grid.addLayout(vbox, 10, 1)
 
         self.setLayout(grid)
-        self.setGeometry(300, 300, 350, 50)
+        #self.setGeometry(300, 300, 350, 850)
         self.setWindowTitle('Review')
 
     def createButton(self, text, member):
@@ -632,7 +648,7 @@ class MainWindow(QtGui.QMainWindow):
         freqhz = commons.hz2Float(freqitem.text())
         bwhz = commons.hz2Float(bwitem.text())
 
-        self.selected_center_pos = (self.scene.Hz2Pos(freqhz),0)
+        self.selected_center_pos = QtCore.QPointF(self.scene.Hz2Pos(freqhz), 0)
         self.bandwidth_pixels = bwhz / self.scene.freqstep
         # self.bandwidth_pixels = self.scene.Hz2Pos(freqhz + (bwhz / 2)) - self.selectedfreq
 
@@ -648,11 +664,13 @@ class MainWindow(QtGui.QMainWindow):
         freqitem = self.tablefreq.item(item.row(), 0)
         bwitem = self.tablefreq.item(item.row(), 1)
         nameitem = self.tablefreq.item(item.row(), 2)
+        authoritem = self.tablefreq.item(item.row(), 3)
 
         values = {
             'freq_center': freqitem.text(),
             'bw': bwitem.text(),
-            'name': nameitem.text()
+            'name': nameitem.text(),
+            'authorname': authoritem.text(),
         }
         self.showDialogFreq(item.row(), values)
 
@@ -661,13 +679,15 @@ class MainWindow(QtGui.QMainWindow):
         self.freqdialog.freqEdit.setText(values['freq_center'])
         self.freqdialog.bandEdit.setText(values['bw'])
         self.freqdialog.nameEdit.setText(values['name'])
+        self.freqdialog.authorshow.setText(values['author'])
 
         # Update de the result
         if self.freqdialog.exec_() == QtGui.QDialog.Accepted:
             edtresult = {
                 'freq_center': self.freqdialog.freqEdit.text(),
                 'bw': self.freqdialog.bandEdit.text(),
-                'name': self.freqdialog.nameEdit.text()
+                'name': self.freqdialog.nameEdit.text(),
+                'authorname': self.freqdialog.authorshow.text(),
             }
             self.insertOrUpdateFreq(rowid, edtresult)
             self.jsonstations[0] = self.saveFreqs()
@@ -683,13 +703,22 @@ class MainWindow(QtGui.QMainWindow):
         # Items
         freqitem = FreqItem(values['freq_center'])
         bwitem = QtGui.QTableWidgetItem(values['bw'])
+
+        # Freq title
         nameitem = QtGui.QTableWidgetItem("")
         if 'name' in values:
             nameitem.setText(values['name'])
 
+        # Author
+        authoritem = QtGui.QTableWidgetItem("UNDEFINED")
+        if 'authorname' in values:
+            authoritem.setText(values['authorname'])
+
+
         self.tablefreq.setItem(rowid, 0, freqitem)
         self.tablefreq.setItem(rowid, 1, bwitem)
         self.tablefreq.setItem(rowid, 2, nameitem)
+        self.tablefreq.setItem(rowid, 3, authoritem)
 
     def deleteFreqs(self, rows):
 
@@ -719,8 +748,14 @@ class MainWindow(QtGui.QMainWindow):
             freqitem = self.tablefreq.item(row, 0)
             bwitem = self.tablefreq.item(row, 1)
             nameitem = self.tablefreq.item(row, 2)
+            authoritem = self.tablefreq.item(row, 3)
 
-            item = {'freq_center': freqitem.text(), 'bw': bwitem.text(), 'name': nameitem.text()}
+            item = {
+                'freq_center': freqitem.text(),
+                'bw': bwitem.text(),
+                'name': nameitem.text(),
+                'authorname': authoritem.text()
+            }
             jsonfreqs['stations'].append(item)
 
         return jsonfreqs
@@ -748,7 +783,7 @@ class MainWindow(QtGui.QMainWindow):
         dock.setAllowedAreas(QtCore.Qt.LeftDockWidgetArea | QtCore.Qt.RightDockWidgetArea)
 
         # Init table
-        headers = ["Freq", "Bw", 'Name']
+        headers = ["Freq", "Bw", 'Name', 'Author']
         self.tablefreq = QtGui.QTableWidget()
         self.tablefreq.setEditTriggers(QtGui.QAbstractItemView.NoEditTriggers)
         self.tablefreq.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
@@ -908,10 +943,15 @@ class MainWindow(QtGui.QMainWindow):
                 self.deleteFreqs(selectedrows)
 
         if pressedkey == QtCore.Qt.Key_Space or pressedkey == QtCore.Qt.Key_Return:
+            author = 'UNDEFINED'
+            if 'author' in self.sdrdatas.scaninfo['global'] and 'name' in self.sdrdatas.scaninfo['global']['author']:
+                author = self.sdrdatas.scaninfo['global']['author']['name']
+
             values = {
                 'freq_center': commons.float2Hz(self.selectedfreq, 3),
                 'bw': commons.float2Hz(self.bwfreq, 3),
-                'name': 'NOT IDENTIFIED'
+                'name': 'NOT IDENTIFIED',
+                'author': author
             }
             self.showDialogFreq(-1, values)
 
