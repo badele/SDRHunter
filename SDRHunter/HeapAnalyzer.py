@@ -652,13 +652,15 @@ class MainWindow(QtGui.QMainWindow):
         self.bandwidth_pixels = bwhz / self.scene.freqstep
         # self.bandwidth_pixels = self.scene.Hz2Pos(freqhz + (bwhz / 2)) - self.selectedfreq
 
-        vvalue = self.scene.views()[0].verticalScrollBar().value()
-        currentviewport = self.scene.views()[0].viewport()
-        self.scene.views()[0].centerOn(self.current_pos.x(), 0)
-        self.scene.views()[0].verticalScrollBar().setValue(vvalue)
+        if self.current_pos:
+            vvalue = self.scene.views()[0].verticalScrollBar().value()
+            currentviewport = self.scene.views()[0].viewport()
 
-        self.scene.mousestep = FreqScene.stepselected
-        self.updateFreqsData()
+            self.scene.views()[0].centerOn(self.selected_center_pos.x(), 0)
+            self.scene.views()[0].verticalScrollBar().setValue(vvalue)
+
+            self.scene.mousestep = FreqScene.stepselected
+            self.updateFreqsData()
 
     def doubleclickeditemfreq(self, item):
         freqitem = self.tablefreq.item(item.row(), 0)
