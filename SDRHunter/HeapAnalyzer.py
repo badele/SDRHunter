@@ -681,7 +681,7 @@ class MainWindow(QtGui.QMainWindow):
         self.freqdialog.freqEdit.setText(values['freq_center'])
         self.freqdialog.bandEdit.setText(values['bw'])
         self.freqdialog.nameEdit.setText(values['name'])
-        self.freqdialog.authorshow.setText(values['author'])
+        self.freqdialog.authorshow.setText(values['authorname'])
 
         # Update de the result
         if self.freqdialog.exec_() == QtGui.QDialog.Accepted:
