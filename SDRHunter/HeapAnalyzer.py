@@ -4,6 +4,7 @@ import os
 import sys
 import math
 import time
+import json
 
 from PySide import QtCore, QtGui
 
@@ -139,7 +140,7 @@ class ExportDialog(QtGui.QDialog):
         self.setWindowTitle('Review')
 
 
-class FreqItem(QtGui.QTableWidgetItem):
+class FreqTableItem(QtGui.QTableWidgetItem):
     def __lt__(self, other):
         return (commons.hz2Float(self.data(QtCore.Qt.DisplayRole)) <
                 commons.hz2Float(other.data(QtCore.Qt.DisplayRole)))
@@ -643,9 +644,9 @@ class MainWindow(QtGui.QMainWindow):
         self.underlineAction.setChecked(font.underline())
 
     def clickeditemfreq(self, item):
-        freqitem = self.tablefreq.item(item.row(), 0)
+        freqtbitem = self.tablefreq.item(item.row(), 0)
         bwitem = self.tablefreq.item(item.row(), 1)
-        freqhz = commons.hz2Float(freqitem.text())
+        freqhz = commons.hz2Float(freqtbitem.text())
         bwhz = commons.hz2Float(bwitem.text())
 
         self.selected_center_pos = QtCore.QPointF(self.scene.Hz2Pos(freqhz), 0)
@@ -663,16 +664,18 @@ class MainWindow(QtGui.QMainWindow):
             self.updateFreqsData()
 
     def doubleclickeditemfreq(self, item):
-        freqitem = self.tablefreq.item(item.row(), 0)
+        freqtbitem = self.tablefreq.item(item.row(), 0)
         bwitem = self.tablefreq.item(item.row(), 1)
         nameitem = self.tablefreq.item(item.row(), 2)
         authoritem = self.tablefreq.item(item.row(), 3)
+        otheritem = self.tablefreq.item(item.row(), 4)
 
         values = {
-            'freq_center': freqitem.text(),
+            'freq_center': freqtbitem.text(),
             'bw': bwitem.text(),
             'name': nameitem.text(),
             'authorname': authoritem.text(),
+            'othervalues': otheritem.text()
         }
         self.showDialogFreq(item.row(), values)
 
@@ -682,6 +685,7 @@ class MainWindow(QtGui.QMainWindow):
         self.freqdialog.bandEdit.setText(values['bw'])
         self.freqdialog.nameEdit.setText(values['name'])
         self.freqdialog.authorshow.setText(values['authorname'])
+        self.freqdialog.otherEdit.setPlainText(str(values['othervalues']))
 
         # Update de the result
         if self.freqdialog.exec_() == QtGui.QDialog.Accepted:
@@ -690,6 +694,7 @@ class MainWindow(QtGui.QMainWindow):
                 'bw': self.freqdialog.bandEdit.text(),
                 'name': self.freqdialog.nameEdit.text(),
                 'authorname': self.freqdialog.authorshow.text(),
+                'othervalues': json.loads(self.freqdialog.otherEdit.toPlainText()),
             }
             self.insertOrUpdateFreq(rowid, edtresult)
             self.jsonstations[0] = self.saveFreqs()
@@ -703,7 +708,7 @@ class MainWindow(QtGui.QMainWindow):
             self.tablefreq.insertRow(rowid)
 
         # Items
-        freqitem = FreqItem(values['freq_center'])
+        freqtbitem = FreqTableItem(values['freq_center'])
         bwitem = QtGui.QTableWidgetItem(values['bw'])
 
         # Freq title
@@ -716,11 +721,19 @@ class MainWindow(QtGui.QMainWindow):
         if 'authorname' in values:
             authoritem.setText(values['authorname'])
 
+        otheritem = QtGui.QTableWidgetItem("{}")
+        if 'othervalues' in values:
+            othervalues = json.dumps(
+                values['othervalues'], sort_keys=True,
+                indent=4, separators=(',', ': ')
+            )
+            otheritem.setText(othervalues)
 
-        self.tablefreq.setItem(rowid, 0, freqitem)
+        self.tablefreq.setItem(rowid, 0, freqtbitem)
         self.tablefreq.setItem(rowid, 1, bwitem)
         self.tablefreq.setItem(rowid, 2, nameitem)
         self.tablefreq.setItem(rowid, 3, authoritem)
+        self.tablefreq.setItem(rowid, 4, otheritem)
 
     def deleteFreqs(self, rows):
 
@@ -747,16 +760,18 @@ class MainWindow(QtGui.QMainWindow):
 
         jsonfreqs = {'stations': []}
         for row in range(rowcount):
-            freqitem = self.tablefreq.item(row, 0)
+            freqtbitem = self.tablefreq.item(row, 0)
             bwitem = self.tablefreq.item(row, 1)
             nameitem = self.tablefreq.item(row, 2)
             authoritem = self.tablefreq.item(row, 3)
+            otheritem = self.tablefreq.item(row, 4)
 
             item = {
-                'freq_center': freqitem.text(),
+                'freq_center': freqtbitem.text(),
                 'bw': bwitem.text(),
                 'name': nameitem.text(),
-                'authorname': authoritem.text()
+                'authorname': authoritem.text(),
+                'othervalues': json.loads(otheritem.text())
             }
             jsonfreqs['stations'].append(item)
 
@@ -785,7 +800,7 @@ class MainWindow(QtGui.QMainWindow):
         dock.setAllowedAreas(QtCore.Qt.LeftDockWidgetArea | QtCore.Qt.RightDockWidgetArea)
 
         # Init table
-        headers = ["Freq", "Bw", 'Name', 'Author']
+        headers = ["Freq", "Bw", 'Name', 'Author', "Others"]
         self.tablefreq = QtGui.QTableWidget()
         self.tablefreq.setEditTriggers(QtGui.QAbstractItemView.NoEditTriggers)
         self.tablefreq.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
@@ -953,7 +968,8 @@ class MainWindow(QtGui.QMainWindow):
                 'freq_center': commons.float2Hz(self.selectedfreq, 3),
                 'bw': commons.float2Hz(self.bwfreq, 3),
                 'name': 'NOT IDENTIFIED',
-                'author': author
+                'authorname': author,
+                'othervalues': {}
             }
             self.showDialogFreq(-1, values)
 
