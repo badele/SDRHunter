@@ -20,6 +20,7 @@ class FreqDialog(QtGui.QDialog):
         titlelbl = QtGui.QLabel('Title')
         freqlbl = QtGui.QLabel('Freq')
         bandwidthlbl = QtGui.QLabel('Bandwidth')
+        modelbl = QtGui.QLabel('Mode')
         otherlbl = QtGui.QLabel('Others')
 
         # Edit
@@ -27,6 +28,7 @@ class FreqDialog(QtGui.QDialog):
         self.nameEdit = QtGui.QLineEdit()
         self.freqEdit = QtGui.QLineEdit()
         self.bandEdit = QtGui.QLineEdit()
+        self.modeEdit = QtGui.QLineEdit()
         self.otherEdit = QtGui.QTextEdit()
 
         # Button
@@ -71,13 +73,17 @@ class FreqDialog(QtGui.QDialog):
         grid.addWidget(self.bandEdit, posgrid, 1)
 
         posgrid += 1
+        grid.addWidget(modelbl, posgrid, 0)
+        grid.addWidget(self.modeEdit, posgrid, 1)
+
+        posgrid += 1
         grid.addWidget(otherlbl, posgrid, 0)
         grid.addWidget(self.otherEdit, posgrid, 1)
 
         grid.addLayout(vbox, 10, 1)
 
         self.setLayout(grid)
-        #self.setGeometry(300, 300, 350, 850)
+        # self.setGeometry(300, 300, 350, 850)
         self.setWindowTitle('Review')
 
     def createButton(self, text, member):
@@ -133,7 +139,7 @@ class ExportDialog(QtGui.QDialog):
         grid.setSpacing(10)
 
         grid.addWidget(self.exportEdit)
-        #grid.addWidget(buttonBox)
+        # grid.addWidget(buttonBox)
 
         self.setLayout(grid)
         self.setGeometry(100, 100, 640, 640)
@@ -667,15 +673,17 @@ class MainWindow(QtGui.QMainWindow):
         freqtbitem = self.tablefreq.item(item.row(), 0)
         bwitem = self.tablefreq.item(item.row(), 1)
         nameitem = self.tablefreq.item(item.row(), 2)
-        authoritem = self.tablefreq.item(item.row(), 3)
-        otheritem = self.tablefreq.item(item.row(), 4)
+        modeitem = self.tablefreq.item(item.row(), 3)
+        authoritem = self.tablefreq.item(item.row(), 4)
+        otheritem = self.tablefreq.item(item.row(), 5)
 
         values = {
             'freq_center': freqtbitem.text(),
             'bw': bwitem.text(),
             'name': nameitem.text(),
+            'mode': modeitem.text(),
             'authorname': authoritem.text(),
-            'othervalues': otheritem.text()
+            'othervalues': json.loads(otheritem.text())
         }
         self.showDialogFreq(item.row(), values)
 
@@ -684,6 +692,7 @@ class MainWindow(QtGui.QMainWindow):
         self.freqdialog.freqEdit.setText(values['freq_center'])
         self.freqdialog.bandEdit.setText(values['bw'])
         self.freqdialog.nameEdit.setText(values['name'])
+        self.freqdialog.modeEdit.setText(values['mode'])
         self.freqdialog.authorshow.setText(values['authorname'])
         self.freqdialog.otherEdit.setPlainText(str(values['othervalues']))
 
@@ -693,6 +702,7 @@ class MainWindow(QtGui.QMainWindow):
                 'freq_center': self.freqdialog.freqEdit.text(),
                 'bw': self.freqdialog.bandEdit.text(),
                 'name': self.freqdialog.nameEdit.text(),
+                'mode': self.freqdialog.modeEdit.text(),
                 'authorname': self.freqdialog.authorshow.text(),
                 'othervalues': json.loads(self.freqdialog.otherEdit.toPlainText()),
             }
@@ -716,6 +726,11 @@ class MainWindow(QtGui.QMainWindow):
         if 'name' in values:
             nameitem.setText(values['name'])
 
+        # Mode
+        modeitem = QtGui.QTableWidgetItem("UNDEFINED")
+        if 'mode' in values:
+            modeitem.setText(values['mode'])
+
         # Author
         authoritem = QtGui.QTableWidgetItem("UNDEFINED")
         if 'authorname' in values:
@@ -732,8 +747,9 @@ class MainWindow(QtGui.QMainWindow):
         self.tablefreq.setItem(rowid, 0, freqtbitem)
         self.tablefreq.setItem(rowid, 1, bwitem)
         self.tablefreq.setItem(rowid, 2, nameitem)
-        self.tablefreq.setItem(rowid, 3, authoritem)
-        self.tablefreq.setItem(rowid, 4, otheritem)
+        self.tablefreq.setItem(rowid, 3, modeitem)
+        self.tablefreq.setItem(rowid, 4, authoritem)
+        self.tablefreq.setItem(rowid, 5, otheritem)
 
     def deleteFreqs(self, rows):
 
@@ -763,13 +779,15 @@ class MainWindow(QtGui.QMainWindow):
             freqtbitem = self.tablefreq.item(row, 0)
             bwitem = self.tablefreq.item(row, 1)
             nameitem = self.tablefreq.item(row, 2)
-            authoritem = self.tablefreq.item(row, 3)
-            otheritem = self.tablefreq.item(row, 4)
+            modeitem = self.tablefreq.item(row, 3)
+            authoritem = self.tablefreq.item(row, 4)
+            otheritem = self.tablefreq.item(row, 5)
 
             item = {
                 'freq_center': freqtbitem.text(),
                 'bw': bwitem.text(),
                 'name': nameitem.text(),
+                'mode': modeitem.text(),
                 'authorname': authoritem.text(),
                 'othervalues': json.loads(otheritem.text())
             }
@@ -800,7 +818,7 @@ class MainWindow(QtGui.QMainWindow):
         dock.setAllowedAreas(QtCore.Qt.LeftDockWidgetArea | QtCore.Qt.RightDockWidgetArea)
 
         # Init table
-        headers = ["Freq", "Bw", 'Name', 'Author', "Others"]
+        headers = ["Freq", "Bw", 'Name', 'Mode', 'Author', "Others"]
         self.tablefreq = QtGui.QTableWidget()
         self.tablefreq.setEditTriggers(QtGui.QAbstractItemView.NoEditTriggers)
         self.tablefreq.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
@@ -945,7 +963,7 @@ class MainWindow(QtGui.QMainWindow):
         # self.zoomIn()
         #
         # if pressedkey == ZoomOut:
-        #     self.zoomOut()
+        # self.zoomOut()
         #     #self.scene.bandwidthvalue -= 1
 
         # if pressedkey == AugmentBW:
@@ -968,6 +986,7 @@ class MainWindow(QtGui.QMainWindow):
                 'freq_center': commons.float2Hz(self.selectedfreq, 3),
                 'bw': commons.float2Hz(self.bwfreq, 3),
                 'name': 'NOT IDENTIFIED',
+                'mode': 'UNDEFINED',
                 'authorname': author,
                 'othervalues': {}
             }
@@ -1008,7 +1027,8 @@ class MainWindow(QtGui.QMainWindow):
         else:
             # Freq line
             self.scene.linefreq.setPen(QtGui.QPen(self.scene.lineselectedcolor, 1))
-            self.scene.linefreq.setLine(self.selected_center_pos.x(), 0, self.selected_center_pos.x(), self.scene.height())
+            self.scene.linefreq.setLine(self.selected_center_pos.x(), 0, self.selected_center_pos.x(),
+                                        self.scene.height())
 
             # Time line
             self.scene.linetime.setVisible(False)
