@@ -17,6 +17,9 @@ About
 
 ``SDRHunter`` Tools for searching the radio of signal
 
+**Features**
+- Tools help recording the sound from rtl_fm
+- Export to uniden receptor (with https://github.com/rikus--/bc125at-perl )
 
 Installing
 ==========

@@ -577,6 +577,61 @@ class MainWindow(QtGui.QMainWindow):
         self.exportdialog.exportEdit.setText(text)
         self.exportdialog.exec_()  # == QtGui.QDialog.Accepted:
 
+    def export2Uniden(self):
+        jsonfreqs = self.tablefreq2JSON()
+
+        unidenstation = {}
+
+        # Fill station with uniden channel number
+        for station in jsonfreqs['stations']:
+            if 'uniden' in station['othervalues']:
+                uniden = station['othervalues']['uniden']
+
+                line = ['{']
+                line.append("cmd => 'CIN',")
+                line.append("index => '%s'," % uniden['channel'])
+                line.append("name => '%s'," % station['name'].replace("'", "")[:15])
+                line.append("frq => '%s'," % station['freq_center'].replace('M', ''))
+                line.append("mod => '%s'," % station['mode'])
+                line.append("ctcss_dcs => '0',")
+                line.append("dly => '0',")
+                line.append("lout => '0',")
+                line.append("pri => '0',")
+                line.append('},')
+                unidenstation[uniden['channel']] = '\n'.join(line)
+
+        # Fill station other station
+        channel = 1
+        for station in jsonfreqs['stations']:
+            if 'uniden' not in station['othervalues']:
+                # No overwriter previous inserted station
+                while channel in unidenstation:
+                    channel += 1
+                if channel > 499:
+                    break
+
+                line = ['{']
+                line.append("cmd => 'CIN',")
+                line.append("index => '%s'," % channel)
+                line.append("name => '%s'," % station['name'].replace("'", "")[:15])
+                line.append("frq => '%s'," % station['freq_center'].replace('M',''))
+                line.append("mod => '%s'," % station['mode'])
+                line.append("ctcss_dcs => '0',")
+                line.append("dly => '0',")
+                line.append("lout => '0',")
+                line.append("pri => '0',")
+                line.append('},')
+                unidenstation[channel] = '\n'.join(line)
+
+        lines = ['[']
+        for key, station in unidenstation.iteritems():
+            lines.append(unidenstation[key])
+        lines.append(']')
+
+        text = '\n'.join(lines)
+        self.exportdialog.exportEdit.setText(text)
+        self.exportdialog.exec_()  # == QtGui.QDialog.Accepted:
+
 
     def initScene(self):
         self.scene = FreqScene(self)
@@ -694,7 +749,12 @@ class MainWindow(QtGui.QMainWindow):
         self.freqdialog.nameEdit.setText(values['name'])
         self.freqdialog.modeEdit.setText(values['mode'])
         self.freqdialog.authorshow.setText(values['authorname'])
-        self.freqdialog.otherEdit.setPlainText(str(values['othervalues']))
+        self.freqdialog.otherEdit.setPlainText(
+            json.dumps(
+                values['othervalues'], sort_keys=True,
+                indent=4, separators=(',', ': ')
+            )
+        )
 
         # Update de the result
         if self.freqdialog.exec_() == QtGui.QDialog.Accepted:
@@ -847,6 +907,8 @@ class MainWindow(QtGui.QMainWindow):
         # Export
         self.export2TXTAction = QtGui.QAction("Export to &Text", self, shortcut="Ctrl+B",
                                               statusTip="Export to Text format", triggered=self.export2TXT)
+        self.export2UnidenAction = QtGui.QAction("Export to &Uniden", self, shortcut="Ctrl+U",
+                                                 statusTip="Export to Uniden format", triggered=self.export2Uniden)
 
         # View
         self.zoomInAct = QtGui.QAction("ZoomIn", self, shortcut="Ctrl++",
@@ -871,6 +933,7 @@ class MainWindow(QtGui.QMainWindow):
         self.exportMenu = self.menuBar().addMenu("&Export")
         self.exportMenu.setEnabled(False)
         self.exportMenu.addAction(self.export2TXTAction)
+        self.exportMenu.addAction(self.export2UnidenAction)
 
         self.viewMenu = self.menuBar().addMenu("&View")
         self.viewMenu.addAction(self.zoomInAct)
@@ -964,10 +1027,10 @@ class MainWindow(QtGui.QMainWindow):
         #
         # if pressedkey == ZoomOut:
         # self.zoomOut()
-        #     #self.scene.bandwidthvalue -= 1
+        # #self.scene.bandwidthvalue -= 1
 
         # if pressedkey == AugmentBW:
-        #     self.bandwidth_pos += 1
+        # self.bandwidth_pos += 1
         #
         # if pressedkey == ReduceBW:
         #     self.bandwidth_pos -= 1
