@@ -505,7 +505,7 @@ class MainWindow(QtGui.QMainWindow):
     def __init__(self):
         super(MainWindow, self).__init__()
 
-        self.current_pos = None
+        self.currentroundedpos = None
         self.selected_center_pos = None
         self.bandwidth_pixels = -1
 
@@ -735,7 +735,7 @@ class MainWindow(QtGui.QMainWindow):
         self.bandwidth_pixels = bwhz / self.scene.freqstep
         # self.bandwidth_pixels = self.scene.Hz2Pos(freqhz + (bwhz / 2)) - self.selectedfreq
 
-        if self.current_pos:
+        if self.currentroundedpos:
             vvalue = self.scene.views()[0].verticalScrollBar().value()
             currentviewport = self.scene.views()[0].viewport()
 
@@ -982,17 +982,22 @@ class MainWindow(QtGui.QMainWindow):
         # selectrightfreqButton.setCheckable(True)
         # selectrightfreqButton.setText("LSB")
 
-        self.sceneScaleCombo = QtGui.QComboBox()
-        self.sceneScaleCombo.addItems(["50%", "75%", "100%", "125%", "150%", "200%", "300%", "400%", "600%", "1000%"])
-        self.sceneScaleCombo.setCurrentIndex(2)
-        self.sceneScaleCombo.currentIndexChanged[str].connect(self.sceneScaleChanged)
+        # self.sceneScaleCombo = QtGui.QComboBox()
+        # self.sceneScaleCombo.addItems(["50%", "75%", "100%", "125%", "150%", "200%", "300%", "400%", "600%", "1000%"])
+        # self.sceneScaleCombo.setCurrentIndex(2)
+        # self.sceneScaleCombo.currentIndexChanged[str].connect(self.sceneScaleChanged)
 
-        self.stepfreq = QtGui.QSpinBox()
-        self.stepfreq.setRange(0, 1000)
-        self.stepfreq.setSingleStep(10)
-        self.stepfreq.setSuffix(' Khz')
-        self.stepfreq.setSpecialValueText("Automatic")
-        self.stepfreq.setValue(100)
+        self.stepfreq = QtGui.QComboBox()
+        self.stepfreq.addItems(["5k", "6.25k", "10k", "12.5k"])
+        self.stepfreq.setCurrentIndex(3)
+        #self.stepfreq.currentIndexChanged[str].connect(self.scenestepChanged)
+
+        # self.stepfreq = QtGui.QSpinBox()
+        # self.stepfreq.setRange(0, 1000)
+        # self.stepfreq.setSingleStep(10)
+        # self.stepfreq.setSuffix(' Khz')
+        # self.stepfreq.setSpecialValueText("Automatic")
+        # self.stepfreq.setValue(100)
 
         # Labels
         self.lblcurrentfreq = QtGui.QLabel()
@@ -1031,7 +1036,8 @@ class MainWindow(QtGui.QMainWindow):
         # self.pointerToolbar.addWidget(selectcenterfreqButton)
         # self.pointerToolbar.addWidget(selectrightfreqButton)
         # self.pointerToolbar.addWidget(self.sceneScaleCombo)
-        # self.pointerToolbar.addWidget(self.stepfreq)
+        self.pointerToolbar.addWidget(self.stepfreq)
+        self.pointerToolbar.addSeparator()
         self.pointerToolbar.addWidget(self.lblcurrentfreq)
         self.pointerToolbar.addWidget(self.lblselectedfreq)
         self.pointerToolbar.addWidget(self.lblselectedbw)
@@ -1099,10 +1105,10 @@ class MainWindow(QtGui.QMainWindow):
         if self.scene.mousestep == FreqScene.stepmove:
             # Freq line
             self.scene.linefreq.setPen(QtGui.QPen(self.scene.linecurrentcolor, 1))
-            self.scene.linefreq.setLine(self.current_pos.x(), 0, self.current_pos.x(), self.scene.height())
+            self.scene.linefreq.setLine(self.currentroundedpos.x(), 0, self.currentroundedpos.x(), self.scene.height())
 
             # Time line
-            self.scene.linetime.setLine(0, self.current_pos.y(), self.scene.width(), self.current_pos.y())
+            self.scene.linetime.setLine(0, self.currentroundedpos.y(), self.scene.width(), self.currentroundedpos.y())
             self.scene.linetime.setVisible(True)
 
             # Bandwidth
@@ -1122,23 +1128,23 @@ class MainWindow(QtGui.QMainWindow):
             self.scene.rectbandwidth.setVisible(True)
 
         # Refresh label
-        if self.current_pos != None:
-            self.currentfreq = self.scene.Pos2Hz(self.current_pos.x())
-            self.lblcurrentfreq.setText("Current: %sHz" % commons.float2Hz(self.currentfreq, 3))
+        if self.currentroundedpos != None:
+            self.currentfreq = self.scene.Pos2Hz(self.currentroundedpos.x())
+            self.lblcurrentfreq.setText("Current: %sHz" % commons.float2Hz(self.currentfreq, 4))
         else:
             self.currentfreq = -1
             self.lblcurrentfreq.setText("")
 
         if self.selected_center_pos != None:
             self.selectedfreq = self.scene.Pos2Hz(self.selected_center_pos.x())
-            self.lblselectedfreq.setText(" Selected: %sHz" % commons.float2Hz(self.selectedfreq, 3))
+            self.lblselectedfreq.setText(" Selected: %sHz" % commons.float2Hz(self.selectedfreq, 4))
         else:
             self.selectedfreq = -1
             self.lblselectedfreq.setText("")
 
         if self.bandwidth_pixels != -1:
             self.bwfreq = (self.scene.Pos2Hz(self.bandwidth_pixels) - self.scene.freqstart) * 2
-            self.lblselectedbw.setText(" Bandwidth: %sHz" % commons.float2Hz(self.bwfreq, 3))
+            self.lblselectedbw.setText(" Bandwidth: %sHz" % commons.float2Hz(self.bwfreq, 4))
         else:
             self.bwfreq = -1
             self.lblselectedbw.setText("")
@@ -1153,7 +1159,7 @@ class MainWindow(QtGui.QMainWindow):
 
         # Selected center freq
         if self.scene.mousestep == FreqScene.stepmove:
-            self.selected_center_pos = self.current_pos
+            self.selected_center_pos = self.currentroundedpos
 
         self.scene.mousestep = (self.scene.mousestep + 1) % FreqScene.maxstep
 
@@ -1170,8 +1176,18 @@ class MainWindow(QtGui.QMainWindow):
 
 
     def scn_mouseMoveEvent(self, mouseEvent):
+        if not self.sdrdatas:
+            return
+
         # Begin freq selection
-        self.current_pos = mouseEvent.scenePos()
+        self.currentmousepos = mouseEvent.scenePos()
+
+        # Compute rounded step
+        self.roundstep = commons.hz2Float(self.stepfreq.currentText())
+        self.roundsteppixel = self.roundstep / self.scene.freqstep
+        snapedpos = int(self.currentmousepos.x() / self.roundsteppixel) * self.roundsteppixel
+        self.currentroundedpos = QtCore.QPointF(snapedpos,self.currentmousepos.y())
+
 
         # Move cursor
         if self.scene.mousestep == FreqScene.stepmove:
@@ -1181,8 +1197,8 @@ class MainWindow(QtGui.QMainWindow):
 
         # Begin bandwidth selection
         if self.scene.mousestep == FreqScene.stepbandwidth:
-            self.bandwidth_pixels = math.fabs(self.selected_center_pos.x() - self.current_pos.x())
-            self.bwfreq = math.fabs(self.current_pos.x() - self.currentfreq)
+            self.bandwidth_pixels = math.fabs(self.selected_center_pos.x() - self.currentroundedpos.x())
+            self.bwfreq = math.fabs(self.currentroundedpos.x() - self.currentfreq)
             if self.scene.myMode == self.scene.modecenter:
                 self.bwfreq *= 2
 
