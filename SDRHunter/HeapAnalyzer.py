@@ -513,6 +513,7 @@ class MainWindow(QtGui.QMainWindow):
         self.bwfreq = 0
         self.filefreqs = ''
         self.sdrdatas = None
+        self.config = None
         self.jsonstations = []
         self.rootdir = {}
 
@@ -582,46 +583,66 @@ class MainWindow(QtGui.QMainWindow):
 
         unidenstation = {}
 
+        bands = self.config['export']['uniden']['bands']
+
         # Fill station with uniden channel number
         for station in jsonfreqs['stations']:
             if 'uniden' in station['othervalues']:
-                uniden = station['othervalues']['uniden']
+                freqcenter = float(station['freq_center'].replace('M', ''))
+                # Check station in the uniden range capability
+                inrage = False
+                for (bstart, bend) in bands:
+                    if freqcenter >= bstart and freqcenter <=bend:
+                        inrage = True
+                        break
 
-                line = ['{']
-                line.append("cmd => 'CIN',")
-                line.append("index => '%s'," % uniden['channel'])
-                line.append("name => '%s'," % station['name'].replace("'", "")[:15])
-                line.append("frq => '%s'," % station['freq_center'].replace('M', ''))
-                line.append("mod => '%s'," % station['mode'])
-                line.append("ctcss_dcs => '0',")
-                line.append("dly => '0',")
-                line.append("lout => '0',")
-                line.append("pri => '0',")
-                line.append('},')
-                unidenstation[uniden['channel']] = '\n'.join(line)
+                if inrage:
+                    uniden = station['othervalues']['uniden']
+
+                    line = ['{']
+                    line.append("cmd => 'CIN',")
+                    line.append("index => '%s'," % uniden['channel'])
+                    line.append("name => '%s'," % station['name'].replace("'", "")[:15])
+                    line.append("frq => '%s'," % freqcenter)
+                    line.append("mod => '%s'," % station['mode'])
+                    line.append("ctcss_dcs => '0',")
+                    line.append("dly => '0',")
+                    line.append("lout => '0',")
+                    line.append("pri => '0',")
+                    line.append('},')
+                    unidenstation[uniden['channel']] = '\n'.join(line)
 
         # Fill station other station
         channel = 1
         for station in jsonfreqs['stations']:
-            if 'uniden' not in station['othervalues']:
-                # No overwriter previous inserted station
-                while channel in unidenstation:
-                    channel += 1
-                if channel > 499:
+            freqcenter = float(station['freq_center'].replace('M', ''))
+            # Check station in the uniden range capability
+            inrage = False
+            for (bstart, bend) in bands:
+                if freqcenter >= bstart and freqcenter <=bend:
+                    inrage = True
                     break
 
-                line = ['{']
-                line.append("cmd => 'CIN',")
-                line.append("index => '%s'," % channel)
-                line.append("name => '%s'," % station['name'].replace("'", "")[:15])
-                line.append("frq => '%s'," % station['freq_center'].replace('M',''))
-                line.append("mod => '%s'," % station['mode'])
-                line.append("ctcss_dcs => '0',")
-                line.append("dly => '0',")
-                line.append("lout => '0',")
-                line.append("pri => '0',")
-                line.append('},')
-                unidenstation[channel] = '\n'.join(line)
+            if inrage:
+                if 'uniden' not in station['othervalues']:
+                    # No overwriter previous inserted station
+                    while channel in unidenstation:
+                        channel += 1
+                    if channel > 499:
+                        break
+
+                    line = ['{']
+                    line.append("cmd => 'CIN',")
+                    line.append("index => '%s'," % channel)
+                    line.append("name => '%s'," % station['name'].replace("'", "")[:15])
+                    line.append("frq => '%s'," % station['freq_center'].replace('M',''))
+                    line.append("mod => '%s'," % station['mode'])
+                    line.append("ctcss_dcs => '0',")
+                    line.append("dly => '0',")
+                    line.append("lout => '0',")
+                    line.append("pri => '0',")
+                    line.append('},')
+                    unidenstation[channel] = '\n'.join(line)
 
         lines = ['[']
         for key, station in unidenstation.iteritems():
@@ -1235,10 +1256,10 @@ def main():
     mainWindow = MainWindow()
 
     # Load config file and get rootdir
-    config = commons.loadConfigFile(commons.getJSONConfigFilename(), None)
+    mainWindow.config = commons.loadConfigFile(commons.getJSONConfigFilename(), None)
     mainWindow.rootdir = os.path.dirname(os.path.realpath(__file__))
-    if 'rootdir' in config['global']:
-        mainWindow.rootdir = config['global']['rootdir']
+    if 'rootdir' in mainWindow.config['global']:
+        mainWindow.rootdir = mainWindow.config['global']['rootdir']
 
     # Resize and launch application
     mainWindow.setGeometry(100, 100, 800, 500)

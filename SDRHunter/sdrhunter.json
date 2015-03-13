@@ -5,12 +5,22 @@
         },
         "rootdir": "",
         "ppm": 57,
-        "gains": [25,50],
+        "gains": [25, 50],
         "verbose": false,
         "heatmap": {
             "stationsfilenames": [
                 "/home/badele/docshare/projects/SDRHunter/SDRHunter/frequencies.json"
             ]
+        },
+        "export": {
+            "uniden": {
+                "bands": [
+                    [25, 88],
+                    [108, 174],
+                    [225, 512],
+                    [806, 960]
+                ]
+            }
         },
         "scans": {
             "nbsamples_lines": 128,
