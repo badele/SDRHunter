@@ -589,6 +589,9 @@ class MainWindow(QtGui.QMainWindow):
         for station in jsonfreqs['stations']:
             if 'uniden' in station['othervalues']:
                 freqcenter = float(station['freq_center'].replace('M', ''))
+                mode = "AUTO"
+                if station['mode'] != "UNDEFINED":
+                    mode = station['mode']
                 # Check station in the uniden range capability
                 inrage = False
                 for (bstart, bend) in bands:
@@ -604,7 +607,7 @@ class MainWindow(QtGui.QMainWindow):
                     line.append("index => '%s'," % uniden['channel'])
                     line.append("name => '%s'," % station['name'].replace("'", "")[:15])
                     line.append("frq => '%s'," % freqcenter)
-                    line.append("mod => '%s'," % station['mode'])
+                    line.append("mod => '%s'," % mode)
                     line.append("ctcss_dcs => '0',")
                     line.append("dly => '0',")
                     line.append("lout => '0',")
@@ -616,6 +619,9 @@ class MainWindow(QtGui.QMainWindow):
         channel = 1
         for station in jsonfreqs['stations']:
             freqcenter = float(station['freq_center'].replace('M', ''))
+            mode = "AUTO"
+            if station['mode'] != "UNDEFINED":
+                mode = station['mode']
             # Check station in the uniden range capability
             inrage = False
             for (bstart, bend) in bands:
@@ -636,7 +642,7 @@ class MainWindow(QtGui.QMainWindow):
                     line.append("index => '%s'," % channel)
                     line.append("name => '%s'," % station['name'].replace("'", "")[:15])
                     line.append("frq => '%s'," % station['freq_center'].replace('M',''))
-                    line.append("mod => '%s'," % station['mode'])
+                    line.append("mod => '%s'," % mode)
                     line.append("ctcss_dcs => '0',")
                     line.append("dly => '0',")
                     line.append("lout => '0',")
@@ -1073,7 +1079,7 @@ class MainWindow(QtGui.QMainWindow):
                 author = self.sdrdatas.scaninfo['global']['author']['name']
 
             values = {
-                'freq_center': commons.float2Hz(self.selectedfreq, 3),
+                'freq_center': commons.float2Hz(self.selectedfreq, 4),
                 'bw': commons.float2Hz(self.bwfreq, 3),
                 'name': 'NOT IDENTIFIED',
                 'mode': 'UNDEFINED',
